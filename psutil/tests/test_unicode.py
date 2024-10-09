@@ -101,9 +101,9 @@ from psutil.tests import chdir
 from psutil.tests import copyload_shared_lib
 from psutil.tests import create_py_exe
 from psutil.tests import get_testfn
+from psutil.tests import pytest
 from psutil.tests import safe_mkdir
 from psutil.tests import safe_rmpath
-from psutil.tests import serialrun
 from psutil.tests import skip_on_access_denied
 from psutil.tests import spawn_testproc
 from psutil.tests import terminate
@@ -178,7 +178,7 @@ class BaseUnicodeTest(PsutilTestCase):
             raise unittest.SkipTest("can't handle unicode str")
 
 
-@serialrun
+@pytest.mark.xdist_group(name="serial")
 @unittest.skipIf(ASCII_FS, "ASCII fs")
 @unittest.skipIf(PYPY and not PY3, "too much trouble on PYPY2")
 class TestFSAPIs(BaseUnicodeTest):
@@ -205,11 +205,9 @@ class TestFSAPIs(BaseUnicodeTest):
         subp = self.spawn_testproc(cmd)
         p = psutil.Process(subp.pid)
         exe = p.exe()
-        self.assertIsInstance(exe, str)
+        assert isinstance(exe, str)
         if self.expect_exact_path_match():
-            self.assertEqual(
-                os.path.normcase(exe), os.path.normcase(self.funky_name)
-            )
+            assert os.path.normcase(exe) == os.path.normcase(self.funky_name)
 
     def test_proc_name(self):
         cmd = [
@@ -219,9 +217,9 @@ class TestFSAPIs(BaseUnicodeTest):
         ]
         subp = self.spawn_testproc(cmd)
         name = psutil.Process(subp.pid).name()
-        self.assertIsInstance(name, str)
+        assert isinstance(name, str)
         if self.expect_exact_path_match():
-            self.assertEqual(name, os.path.basename(self.funky_name))
+            assert name == os.path.basename(self.funky_name)
 
     def test_proc_cmdline(self):
         cmd = [
@@ -233,9 +231,9 @@ class TestFSAPIs(BaseUnicodeTest):
         p = psutil.Process(subp.pid)
         cmdline = p.cmdline()
         for part in cmdline:
-            self.assertIsInstance(part, str)
+            assert isinstance(part, str)
         if self.expect_exact_path_match():
-            self.assertEqual(cmdline, cmd)
+            assert cmdline == cmd
 
     def test_proc_cwd(self):
         dname = self.funky_name + "2"
@@ -244,9 +242,9 @@ class TestFSAPIs(BaseUnicodeTest):
         with chdir(dname):
             p = psutil.Process()
             cwd = p.cwd()
-        self.assertIsInstance(p.cwd(), str)
+        assert isinstance(p.cwd(), str)
         if self.expect_exact_path_match():
-            self.assertEqual(cwd, dname)
+            assert cwd == dname
 
     @unittest.skipIf(PYPY and WINDOWS, "fails on PYPY + WINDOWS")
     def test_proc_open_files(self):
@@ -255,14 +253,12 @@ class TestFSAPIs(BaseUnicodeTest):
         with open(self.funky_name, 'rb'):
             new = set(p.open_files())
         path = (new - start).pop().path
-        self.assertIsInstance(path, str)
+        assert isinstance(path, str)
         if BSD and not path:
             # XXX - see https://github.com/giampaolo/psutil/issues/595
             raise unittest.SkipTest("open_files on BSD is broken")
         if self.expect_exact_path_match():
-            self.assertEqual(
-                os.path.normcase(path), os.path.normcase(self.funky_name)
-            )
+            assert os.path.normcase(path) == os.path.normcase(self.funky_name)
 
     @unittest.skipIf(not POSIX, "POSIX only")
     def test_proc_net_connections(self):
@@ -276,8 +272,8 @@ class TestFSAPIs(BaseUnicodeTest):
                 raise unittest.SkipTest("not supported")
         with closing(sock):
             conn = psutil.Process().net_connections('unix')[0]
-            self.assertIsInstance(conn.laddr, str)
-            self.assertEqual(conn.laddr, name)
+            assert isinstance(conn.laddr, str)
+            assert conn.laddr == name
 
     @unittest.skipIf(not POSIX, "POSIX only")
     @unittest.skipIf(not HAS_NET_CONNECTIONS_UNIX, "can't list UNIX sockets")
@@ -300,8 +296,8 @@ class TestFSAPIs(BaseUnicodeTest):
         with closing(sock):
             cons = psutil.net_connections(kind='unix')
             conn = find_sock(cons)
-            self.assertIsInstance(conn.laddr, str)
-            self.assertEqual(conn.laddr, name)
+            assert isinstance(conn.laddr, str)
+            assert conn.laddr == name
 
     def test_disk_usage(self):
         dname = self.funky_name + "2"
@@ -325,9 +321,9 @@ class TestFSAPIs(BaseUnicodeTest):
             ]
             # ...just to have a clearer msg in case of failure
             libpaths = [x for x in libpaths if TESTFN_PREFIX in x]
-            self.assertIn(normpath(funky_path), libpaths)
+            assert normpath(funky_path) in libpaths
             for path in libpaths:
-                self.assertIsInstance(path, str)
+                assert isinstance(path, str)
 
 
 @unittest.skipIf(CI_TESTING, "unreliable on CI")
@@ -365,12 +361,6 @@ class TestNonFSAPIS(BaseUnicodeTest):
         p = psutil.Process(sproc.pid)
         env = p.environ()
         for k, v in env.items():
-            self.assertIsInstance(k, str)
-            self.assertIsInstance(v, str)
-        self.assertEqual(env['FUNNY_ARG'], self.funky_suffix)
-
-
-if __name__ == '__main__':
-    from psutil.tests.runner import run_from_name
-
-    run_from_name(__file__)
+            assert isinstance(k, str)
+            assert isinstance(v, str)
+        assert env['FUNNY_ARG'] == self.funky_suffix
