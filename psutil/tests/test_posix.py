@@ -13,7 +13,6 @@ import os
 import re
 import subprocess
 import time
-import unittest
 
 import psutil
 from psutil import AIX
@@ -141,7 +140,7 @@ def df(device):
         out = sh("df -k %s" % device).strip()
     except RuntimeError as err:
         if "device busy" in str(err).lower():
-            raise unittest.SkipTest("df returned EBUSY")
+            raise pytest.skip("df returned EBUSY")
         raise
     line = out.split('\n')[1]
     fields = line.split()
@@ -152,7 +151,7 @@ def df(device):
     return (sys_total, sys_used, sys_free, sys_percent)
 
 
-@unittest.skipIf(not POSIX, "POSIX only")
+@pytest.mark.skipif(not POSIX, reason="POSIX only")
 class TestProcess(PsutilTestCase):
     """Compare psutil results against 'ps' command line utility (mainly)."""
 
@@ -268,7 +267,7 @@ class TestProcess(PsutilTestCase):
                 with pytest.raises(psutil.NoSuchProcess):
                     p.name()
 
-    @unittest.skipIf(MACOS or BSD, 'ps -o start not available')
+    @pytest.mark.skipif(MACOS or BSD, reason="ps -o start not available")
     def test_create_time(self):
         time_ps = ps('start', self.pid)
         time_psutil = psutil.Process(self.pid).create_time()
@@ -317,15 +316,15 @@ class TestProcess(PsutilTestCase):
     # returns 0; psutil relies on it, see:
     # https://github.com/giampaolo/psutil/issues/1082
     # AIX has the same issue
-    @unittest.skipIf(SUNOS, "not reliable on SUNOS")
-    @unittest.skipIf(AIX, "not reliable on AIX")
+    @pytest.mark.skipif(SUNOS, reason="not reliable on SUNOS")
+    @pytest.mark.skipif(AIX, reason="not reliable on AIX")
     def test_nice(self):
         ps_nice = ps('nice', self.pid)
         psutil_nice = psutil.Process().nice()
         assert ps_nice == psutil_nice
 
 
-@unittest.skipIf(not POSIX, "POSIX only")
+@pytest.mark.skipif(not POSIX, reason="POSIX only")
 class TestSystemAPIs(PsutilTestCase):
     """Test some system APIs."""
 
@@ -349,9 +348,9 @@ class TestSystemAPIs(PsutilTestCase):
 
     # for some reason ifconfig -a does not report all interfaces
     # returned by psutil
-    @unittest.skipIf(SUNOS, "unreliable on SUNOS")
-    @unittest.skipIf(not which('ifconfig'), "no ifconfig cmd")
-    @unittest.skipIf(not HAS_NET_IO_COUNTERS, "not supported")
+    @pytest.mark.skipif(SUNOS, reason="unreliable on SUNOS")
+    @pytest.mark.skipif(not which('ifconfig'), reason="no ifconfig cmd")
+    @pytest.mark.skipif(not HAS_NET_IO_COUNTERS, reason="not supported")
     def test_nic_names(self):
         output = sh("ifconfig -a")
         for nic in psutil.net_io_counters(pernic=True):
@@ -364,12 +363,13 @@ class TestSystemAPIs(PsutilTestCase):
                     % (nic, output)
                 )
 
-    # @unittest.skipIf(CI_TESTING and not psutil.users(), "unreliable on CI")
+    # @pytest.mark.skipif(CI_TESTING and not psutil.users(),
+    #                     reason="unreliable on CI")
     @retry_on_failure()
     def test_users(self):
         out = sh("who -u")
         if not out.strip():
-            raise unittest.SkipTest("no users on this system")
+            raise pytest.skip("no users on this system")
         lines = out.split('\n')
         users = [x.split()[0] for x in lines]
         terminals = [x.split()[1] for x in lines]
@@ -385,7 +385,7 @@ class TestSystemAPIs(PsutilTestCase):
     def test_users_started(self):
         out = sh("who -u")
         if not out.strip():
-            raise unittest.SkipTest("no users on this system")
+            raise pytest.skip("no users on this system")
         tstamp = None
         # '2023-04-11 09:31' (Linux)
         started = re.findall(r"\d\d\d\d-\d\d-\d\d \d\d:\d\d", out)
@@ -409,7 +409,7 @@ class TestSystemAPIs(PsutilTestCase):
                         started = [x.capitalize() for x in started]
 
         if not tstamp:
-            raise unittest.SkipTest(
+            raise pytest.skip(
                 "cannot interpret tstamp in who output\n%s" % (out)
             )
 
@@ -460,7 +460,7 @@ class TestSystemAPIs(PsutilTestCase):
             assert m.called
 
     # AIX can return '-' in df output instead of numbers, e.g. for /proc
-    @unittest.skipIf(AIX, "unreliable on AIX")
+    @pytest.mark.skipif(AIX, reason="unreliable on AIX")
     @retry_on_failure()
     def test_disk_usage(self):
         tolerance = 4 * 1024 * 1024  # 4MB
@@ -487,7 +487,7 @@ class TestSystemAPIs(PsutilTestCase):
                 assert abs(usage.percent - sys_percent) <= 1
 
 
-@unittest.skipIf(not POSIX, "POSIX only")
+@pytest.mark.skipif(not POSIX, reason="POSIX only")
 class TestMisc(PsutilTestCase):
     def test_getpagesize(self):
         pagesize = getpagesize()

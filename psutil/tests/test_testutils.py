@@ -26,6 +26,7 @@ from psutil import POSIX
 from psutil._common import open_binary
 from psutil._common import open_text
 from psutil._common import supports_ipv6
+from psutil._compat import PY3
 from psutil.tests import CI_TESTING
 from psutil.tests import COVERAGE
 from psutil.tests import HAS_NET_CONNECTIONS_UNIX
@@ -249,7 +250,7 @@ class TestProcessUtils(PsutilTestCase):
         terminate(grandchild)
         assert not grandchild.is_running()
 
-    @unittest.skipIf(not POSIX, "POSIX only")
+    @pytest.mark.skipif(not POSIX, reason="POSIX only")
     def test_spawn_zombie(self):
         _parent, zombie = self.spawn_zombie()
         assert zombie.status() == psutil.STATUS_ZOMBIE
@@ -300,7 +301,7 @@ class TestNetUtils(PsutilTestCase):
         with contextlib.closing(bind_socket(addr=('', port))) as s:
             assert s.getsockname()[1] == port
 
-    @unittest.skipIf(not POSIX, "POSIX only")
+    @pytest.mark.skipif(not POSIX, reason="POSIX only")
     def test_bind_unix_socket(self):
         name = self.get_testfn()
         sock = bind_unix_socket(name)
@@ -327,9 +328,9 @@ class TestNetUtils(PsutilTestCase):
                 assert client.getpeername() == addr
                 assert client.getsockname() != addr
 
-    @unittest.skipIf(not POSIX, "POSIX only")
-    @unittest.skipIf(
-        NETBSD or FREEBSD, "/var/run/log UNIX socket opened by default"
+    @pytest.mark.skipif(not POSIX, reason="POSIX only")
+    @pytest.mark.skipif(
+        NETBSD or FREEBSD, reason="/var/run/log UNIX socket opened by default"
     )
     def test_unix_socketpair(self):
         p = psutil.Process()
@@ -396,8 +397,8 @@ class TestMemLeakClass(TestMemoryLeak):
             self.execute(lambda: 0, retries=-1)
 
     @retry_on_failure()
-    @unittest.skipIf(CI_TESTING, "skipped on CI")
-    @unittest.skipIf(COVERAGE, "skipped during test coverage")
+    @pytest.mark.skipif(CI_TESTING, reason="skipped on CI")
+    @pytest.mark.skipif(COVERAGE, reason="skipped during test coverage")
     def test_leak_mem(self):
         ls = []
 
@@ -449,6 +450,13 @@ class TestMemLeakClass(TestMemoryLeak):
 
 
 class TestFakePytest(PsutilTestCase):
+    def run_test_class(self, klass):
+        suite = unittest.TestSuite()
+        suite.addTest(klass)
+        runner = unittest.TextTestRunner()
+        result = runner.run(suite)
+        return result
+
     def test_raises(self):
         with fake_pytest.raises(ZeroDivisionError) as cm:
             1 / 0  # noqa
@@ -478,6 +486,38 @@ class TestFakePytest(PsutilTestCase):
                 return 1
 
         assert Foo().bar() == 1
+
+    def test_skipif(self):
+        class TestCase(unittest.TestCase):
+            @fake_pytest.mark.skipif(True, reason="reason")
+            def foo(self):
+                assert 1 == 1  # noqa
+
+        result = self.run_test_class(TestCase("foo"))
+        assert result.wasSuccessful()
+        assert len(result.skipped) == 1
+        assert result.skipped[0][1] == "reason"
+
+        class TestCase(unittest.TestCase):
+            @fake_pytest.mark.skipif(False, reason="reason")
+            def foo(self):
+                assert 1 == 1  # noqa
+
+        result = self.run_test_class(TestCase("foo"))
+        assert result.wasSuccessful()
+        assert len(result.skipped) == 0
+
+    @pytest.mark.skipif(not PY3, reason="not PY3")
+    def test_skip(self):
+        class TestCase(unittest.TestCase):
+            def foo(self):
+                fake_pytest.skip("reason")
+                assert 1 == 0  # noqa
+
+        result = self.run_test_class(TestCase("foo"))
+        assert result.wasSuccessful()
+        assert len(result.skipped) == 1
+        assert result.skipped[0][1] == "reason"
 
     def test_main(self):
         tmpdir = self.get_testfn(dir=HERE)

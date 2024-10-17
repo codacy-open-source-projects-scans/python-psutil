@@ -104,7 +104,7 @@ __all__ = [
     'unittest', 'skip_on_access_denied', 'skip_on_not_implemented',
     'retry_on_failure', 'TestMemoryLeak', 'PsutilTestCase',
     'process_namespace', 'system_namespace', 'print_sysinfo',
-    'is_win_secure_system_proc',
+    'is_win_secure_system_proc', 'fake_pytest',
     # fs utils
     'chdir', 'safe_rmpath', 'create_py_exe', 'create_c_exe', 'get_testfn',
     # os
@@ -878,7 +878,7 @@ def create_c_exe(path, c_code=None):
     """Create a compiled C executable in the given location."""
     assert not os.path.exists(path), path
     if not which("gcc"):
-        raise unittest.SkipTest("gcc is not installed")
+        raise pytest.skip("gcc is not installed")
     if c_code is None:
         c_code = textwrap.dedent("""
             #include <unistd.h>
@@ -974,7 +974,18 @@ class fake_pytest:
             return unittest.TestCase().assertWarnsRegex(warning, match)
         return unittest.TestCase().assertWarns(warning)
 
+    @staticmethod
+    def skip(reason=""):
+        """Mimics `unittest.SkipTest`."""
+        raise unittest.SkipTest(reason)
+
     class mark:
+
+        @staticmethod
+        def skipif(condition, reason=""):
+            """Mimics `@pytest.mark.skipif` decorator."""
+            return unittest.skipIf(condition, reason)
+
         class xdist_group:
             """Mimics `@pytest.mark.xdist_group` decorator (no-op)."""
 
@@ -1150,7 +1161,7 @@ class PsutilTestCase(TestCase):
         # self.assertEqual(proc.ppid(), os.getpid())
 
 
-@unittest.skipIf(PYPY, "unreliable on PYPY")
+@pytest.mark.skipif(PYPY, reason="unreliable on PYPY")
 class TestMemoryLeak(PsutilTestCase):
     """Test framework class for detecting function memory leaks,
     typically functions implemented in C which forgot to free() memory
@@ -1683,7 +1694,7 @@ def skip_on_access_denied(only_if=None):
                 if only_if is not None:
                     if not only_if:
                         raise
-                raise unittest.SkipTest("raises AccessDenied")
+                raise pytest.skip("raises AccessDenied")
 
         return wrapper
 
@@ -1706,7 +1717,7 @@ def skip_on_not_implemented(only_if=None):
                     "%r was skipped because it raised NotImplementedError"
                     % fun.__name__
                 )
-                raise unittest.SkipTest(msg)
+                raise pytest.skip(msg)
 
         return wrapper
 

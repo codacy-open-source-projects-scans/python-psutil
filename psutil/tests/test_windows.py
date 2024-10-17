@@ -17,7 +17,6 @@ import signal
 import subprocess
 import sys
 import time
-import unittest
 import warnings
 
 import psutil
@@ -57,10 +56,12 @@ if WINDOWS:
 cext = psutil._psplatform.cext
 
 
-@unittest.skipIf(not WINDOWS, "WINDOWS only")
-@unittest.skipIf(PYPY, "pywin32 not available on PYPY")
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
+@pytest.mark.skipif(PYPY, reason="pywin32 not available on PYPY")
 # https://github.com/giampaolo/psutil/pull/1762#issuecomment-632892692
-@unittest.skipIf(GITHUB_ACTIONS and not PY3, "pywin32 broken on GITHUB + PY2")
+@pytest.mark.skipif(
+    GITHUB_ACTIONS and not PY3, reason="pywin32 broken on GITHUB + PY2"
+)
 class WindowsTestCase(PsutilTestCase):
     pass
 
@@ -72,7 +73,7 @@ def powershell(cmd):
         "Get-CIMInstance Win32_PageFileUsage | Select AllocatedBaseSize")
     """
     if not which("powershell.exe"):
-        raise unittest.SkipTest("powershell.exe not available")
+        raise pytest.skip("powershell.exe not available")
     cmdline = (
         'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive '
         + '-NoProfile -WindowStyle Hidden -Command "%s"' % cmd
@@ -103,9 +104,9 @@ def wmic(path, what, converter=int):
 
 
 class TestCpuAPIs(WindowsTestCase):
-    @unittest.skipIf(
+    @pytest.mark.skipif(
         'NUMBER_OF_PROCESSORS' not in os.environ,
-        'NUMBER_OF_PROCESSORS env var is not available',
+        reason="NUMBER_OF_PROCESSORS env var is not available",
     )
     def test_cpu_count_vs_NUMBER_OF_PROCESSORS(self):
         # Will likely fail on many-cores systems:
@@ -186,7 +187,7 @@ class TestSystemAPIs(WindowsTestCase):
             assert abs(psutil.swap_memory().percent - percentSwap) < 5
             assert psutil.swap_memory().percent <= 100
 
-    # @unittest.skipIf(wmi is None, "wmi module is not installed")
+    # @pytest.mark.skipif(wmi is None, reason="wmi module is not installed")
     # def test__UPTIME(self):
     #     # _UPTIME constant is not public but it is used internally
     #     # as value to return for pid 0 creation time.
@@ -198,7 +199,7 @@ class TestSystemAPIs(WindowsTestCase):
     #                                   time.localtime(p.create_time()))
 
     # Note: this test is not very reliable
-    @unittest.skipIf(APPVEYOR, "test not relieable on appveyor")
+    @pytest.mark.skipif(APPVEYOR, reason="test not relieable on appveyor")
     @retry_on_failure()
     def test_pids(self):
         # Note: this test might fail if the OS is starting/killing
@@ -311,7 +312,7 @@ class TestSensorsBattery(WindowsTestCase):
         else:
             assert psutil.sensors_battery() is None
 
-    @unittest.skipIf(not HAS_BATTERY, "no battery")
+    @pytest.mark.skipif(not HAS_BATTERY, reason="no battery")
     def test_percent(self):
         w = wmi.WMI()
         battery_wmi = w.query('select * from Win32_Battery')[0]
@@ -321,7 +322,7 @@ class TestSensorsBattery(WindowsTestCase):
             < 1
         )
 
-    @unittest.skipIf(not HAS_BATTERY, "no battery")
+    @pytest.mark.skipif(not HAS_BATTERY, reason="no battery")
     def test_power_plugged(self):
         w = wmi.WMI()
         battery_wmi = w.query('select * from Win32_Battery')[0]
@@ -438,7 +439,7 @@ class TestProcess(WindowsTestCase):
             # When running as a service account (most likely to be
             # NetworkService), these user name calculations don't produce the
             # same result, causing the test to fail.
-            raise unittest.SkipTest('running as service account')
+            raise pytest.skip('running as service account')
         assert psutil.Process().username() == name
 
     def test_cmdline(self):
@@ -597,7 +598,9 @@ class TestProcessWMI(WindowsTestCase):
         assert p.name() == w.Caption
 
     # This fail on github because using virtualenv for test environment
-    @unittest.skipIf(GITHUB_ACTIONS, "unreliable path on GITHUB_ACTIONS")
+    @pytest.mark.skipif(
+        GITHUB_ACTIONS, reason="unreliable path on GITHUB_ACTIONS"
+    )
     def test_exe(self):
         w = wmi.WMI().Win32_Process(ProcessId=self.pid)[0]
         p = psutil.Process(self.pid)
@@ -650,7 +653,7 @@ class TestProcessWMI(WindowsTestCase):
 # ---
 
 
-@unittest.skipIf(not WINDOWS, "WINDOWS only")
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
 class TestDualProcessImplementation(PsutilTestCase):
     """Certain APIs on Windows have 2 internal implementations, one
     based on documented Windows APIs, another one based
@@ -738,7 +741,7 @@ class TestDualProcessImplementation(PsutilTestCase):
                 assert a == b
 
 
-@unittest.skipIf(not WINDOWS, "WINDOWS only")
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
 class RemoteProcessTestCase(PsutilTestCase):
     """Certain functions require calling ReadProcessMemory.
     This trivially works when called on the current process.
@@ -771,7 +774,7 @@ class RemoteProcessTestCase(PsutilTestCase):
 
         other_python = self.find_other_interpreter()
         if other_python is None:
-            raise unittest.SkipTest(
+            raise pytest.skip(
                 "could not find interpreter with opposite bitness"
             )
         if IS_64BIT:
@@ -832,7 +835,7 @@ class RemoteProcessTestCase(PsutilTestCase):
 # ===================================================================
 
 
-@unittest.skipIf(not WINDOWS, "WINDOWS only")
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
 class TestServices(PsutilTestCase):
     def test_win_service_iter(self):
         valid_statuses = set([
