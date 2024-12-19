@@ -11,7 +11,6 @@ from __future__ import division
 import collections
 import contextlib
 import errno
-import glob
 import io
 import os
 import re
@@ -61,15 +60,11 @@ if LINUX:
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 SIOCGIFADDR = 0x8915
-SIOCGIFCONF = 0x8912
 SIOCGIFHWADDR = 0x8927
 SIOCGIFNETMASK = 0x891B
 SIOCGIFBRDADDR = 0x8919
 if LINUX:
     SECTOR_SIZE = 512
-EMPTY_TEMPERATURES = not glob.glob('/sys/class/hwmon/hwmon*')
-
-
 # =====================================================================
 # --- utils
 # =====================================================================
@@ -2137,6 +2132,15 @@ class TestProcess(PsutilTestCase):
             with pytest.raises(FileNotFoundError):
                 p.memory_maps()
             assert m.called
+
+    def test_issue_2418(self):
+        p = psutil.Process()
+        with mock_open_exception(
+            '/proc/%s/statm' % os.getpid(), FileNotFoundError
+        ):
+            with mock.patch("os.path.exists", return_value=False):
+                with pytest.raises(psutil.NoSuchProcess):
+                    p.memory_info()
 
     @pytest.mark.skipif(not HAS_RLIMIT, reason="not supported")
     def test_rlimit_zombie(self):

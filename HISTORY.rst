@@ -1,5 +1,21 @@
 *Bug tracker at https://github.com/giampaolo/psutil/issues*
 
+6.1.1 (IN DEVELOPMENT)
+======================
+
+XXXX-XX-XX
+
+**Enhancements**
+
+- 2471_: use Vulture CLI tool to detect dead code.
+
+**Bug fixes**
+
+- 2418_, [Linux]: fix race condition in case /proc/PID/stat does not exist, but
+  /proc/PID does, resulting in FileNotFoundError.
+- 2470_, [Linux]: `users()`_ may return "localhost" instead of the actual IP
+  address of the user logged in.
+
 6.1.0
 =====
 

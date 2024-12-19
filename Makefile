@@ -81,13 +81,13 @@ install-sysdeps:
 
 install-pydeps-test:  ## Install python deps necessary to run unit tests.
 	${MAKE} install-pip
-	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) pip  # upgrade pip to latest version
+	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) pip setuptools
 	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) `$(PYTHON) -c "import setup; print(' '.join(setup.TEST_DEPS))"`
 
 install-pydeps-dev:  ## Install python deps meant for local development.
 	${MAKE} install-git-hooks
 	${MAKE} install-pip
-	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) pip  # upgrade pip to latest version
+	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) pip setuptools
 	$(PYTHON) -m pip install $(PIP_INSTALL_ARGS) `$(PYTHON) -c "import setup; print(' '.join(setup.TEST_DEPS + setup.DEV_DEPS))"`
 
 install-git-hooks:  ## Install GIT pre-commit hook.
@@ -171,19 +171,16 @@ test-coverage:  ## Run test coverage.
 ruff:  ## Run ruff linter.
 	@git ls-files '*.py' | xargs $(PYTHON) -m ruff check --output-format=concise
 
-black:  ## Python files linting (via black)
+black:  ## Run black formatter.
 	@git ls-files '*.py' | xargs $(PYTHON) -m black --check --safe
-
-_pylint:  ## Python pylint (not mandatory, just run it from time to time)
-	@git ls-files '*.py' | xargs $(PYTHON) -m pylint --rcfile=pyproject.toml --jobs=0
 
 lint-c:  ## Run C linter.
 	@git ls-files '*.c' '*.h' | xargs $(PYTHON) scripts/internal/clinter.py
 
-lint-rst:  ## Run C linter.
+lint-rst:  ## Run linter for .rst files.
 	@git ls-files '*.rst' | xargs rstcheck --config=pyproject.toml
 
-lint-toml:  ## Linter for pyproject.toml
+lint-toml:  ## Run linter for pyproject.toml.
 	@git ls-files '*.toml' | xargs toml-sort --check
 
 lint-all:  ## Run all linters
@@ -192,6 +189,14 @@ lint-all:  ## Run all linters
 	${MAKE} lint-c
 	${MAKE} lint-rst
 	${MAKE} lint-toml
+
+# --- not mandatory linters (just run from time to time)
+
+pylint:  ## Python pylint
+	@git ls-files '*.py' | xargs $(PYTHON) -m pylint --rcfile=pyproject.toml --jobs=0 $(ARGS)
+
+vulture:  ## Find unused code
+	@git ls-files '*.py' | xargs $(PYTHON) -m vulture $(ARGS)
 
 # ===================================================================
 # Fixers
