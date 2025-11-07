@@ -19,8 +19,7 @@ original(ish) implementations:
 #include <sys/sysctl.h>
 #include <uvm/uvm_extern.h>
 
-#include "../../_psutil_common.h"
-#include "../../_psutil_posix.h"
+#include "../../arch/all/init.h"
 
 
 // Virtual memory stats, taken from:
@@ -33,11 +32,8 @@ psutil_virtual_mem(PyObject *self, PyObject *args) {
     int mib[] = {CTL_VM, VM_UVMEXP2};
     long long cached;
 
-    size = sizeof(uv);
-    if (sysctl(mib, 2, &uv, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(mib, 2, &uv, sizeof(uv)) != 0)
         return NULL;
-    }
 
     // Note: zabbix does not include anonpages, but that doesn't match the
     // "Cached" value in /proc/meminfo.
@@ -45,11 +41,11 @@ psutil_virtual_mem(PyObject *self, PyObject *args) {
     cached = (uv.filepages + uv.execpages + uv.anonpages) << uv.pageshift;
     return Py_BuildValue(
         "LLLLLL",
-        (long long) uv.npages << uv.pageshift,  // total
-        (long long) uv.free << uv.pageshift,  // free
-        (long long) uv.active << uv.pageshift,  // active
-        (long long) uv.inactive << uv.pageshift,  // inactive
-        (long long) uv.wired << uv.pageshift,  // wired
+        (long long)uv.npages << uv.pageshift,  // total
+        (long long)uv.free << uv.pageshift,  // free
+        (long long)uv.active << uv.pageshift,  // active
+        (long long)uv.inactive << uv.pageshift,  // inactive
+        (long long)uv.wired << uv.pageshift,  // wired
         cached  // cached
     );
 }
@@ -70,12 +66,12 @@ psutil_swap_mem(PyObject *self, PyObject *args) {
 
     swdev = calloc(nswap, sizeof(*swdev));
     if (swdev == NULL) {
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
         return NULL;
     }
 
     if (swapctl(SWAP_STATS, swdev, nswap) == -1) {
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
         goto error;
     }
 
@@ -84,7 +80,8 @@ psutil_swap_mem(PyObject *self, PyObject *args) {
     for (i = 0; i < nswap; i++) {
         if (swdev[i].se_flags & SWF_ENABLE) {
             swap_total += (uint64_t)swdev[i].se_nblks * DEV_BSIZE;
-            swap_free += (uint64_t)(swdev[i].se_nblks - swdev[i].se_inuse) * DEV_BSIZE;
+            swap_free += (uint64_t)(swdev[i].se_nblks - swdev[i].se_inuse)
+                         * DEV_BSIZE;
         }
     }
     free(swdev);
@@ -94,18 +91,17 @@ psutil_swap_mem(PyObject *self, PyObject *args) {
     size_t size = sizeof(total);
     struct uvmexp_sysctl uv;
     int mib[] = {CTL_VM, VM_UVMEXP2};
-    size = sizeof(uv);
-    if (sysctl(mib, 2, &uv, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(mib, 2, &uv, sizeof(uv)) != 0)
         goto error;
-    }
 
-    return Py_BuildValue("(LLLll)",
-                         swap_total,
-                         (swap_total - swap_free),
-                         swap_free,
-                         (long) uv.pgswapin * pagesize,  // swap in
-                         (long) uv.pgswapout * pagesize);  // swap out
+    return Py_BuildValue(
+        "(LLLll)",
+        swap_total,
+        (swap_total - swap_free),
+        swap_free,
+        (long)uv.pgswapin * pagesize,  // swap in
+        (long)uv.pgswapout * pagesize  // swap out
+    );
 
 error:
     free(swdev);

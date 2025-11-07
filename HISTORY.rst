@@ -1,9 +1,182 @@
 *Bug tracker at https://github.com/giampaolo/psutil/issues*
 
-6.1.1 (IN DEVELOPMENT)
+7.2.0 (IN DEVELOPMENT)
 ======================
 
 XXXX-XX-XX
+
+**Enhancements**
+
+- 2680_: unit tests are no longer installed / part of the distribution. They
+  now live under `tests/` instead of `psutil/tests`.
+
+**Compatibility notes**
+
+- 2680_: `import psutil.tests` no longer works (but it was never documented to
+  begin with).
+
+7.1.3
+=====
+
+2025-11-02
+
+**Enhancements**
+
+- 2667_: enforce `clang-format` on all C and header files. It is now the
+  mandatory formatting style for all C sources.
+- 2672_, [macOS], [BSD]: increase the chances to recognize zombie processes and
+  raise the appropriate exception (`ZombieProcess`_).
+- 2676_, 2678_: replace unsafe `sprintf` / `snprintf` / `sprintf_s` calls with
+  `str_format()`. Replace `strlcat` / `strlcpy` with safe `str_copy` /
+  `str_append`. This unifies string handling across platforms and reduces
+  unsafe usage of standard string functions, improving robustness.
+
+**Bug fixes**
+
+- 2674_, [Windows]: `disk_usage()`_ could truncate values on 32-bit platforms,
+  potentially reporting incorrect total/free/used space for drives larger than
+  4GB.
+- 2675_, [macOS]: `Process.status()`_ incorrectly returns "running" for 99%
+  of the processes.
+- 2677_, [Windows]: fix MAC address string construction in `net_if_addrs()`_.
+  Previously, the MAC address buffer was incorrectly updated using a fixed
+  increment and `sprintf_s`, which could overflow or misformat the
+  string if the MAC length or formatting changed. Also, the final '\n' was
+  inserted unnecessarily.
+- 2679_, [OpenBSD], [NetBSD], [critical]: can't build due to C syntax error.
+
+7.1.2
+=====
+
+2025-10-25
+
+**Enhancements**
+
+- 2657_: stop publishing prebuilt Linux and Windows wheels for 32-bit Python.
+  32-bit CPython is still supported, but psutil must now be built from source.
+  2565_: produce wheels for free-thread cPython 3.13 and 3.14 (patch by
+  Lysandros Nikolaou)
+
+**Bug fixes**
+
+- 2650_, [macOS]: `Process.cmdline()`_ and `Process.environ()`_ may incorrectly
+  raise `NoSuchProcess`_ instead of `ZombieProcess`_.
+- 2658_, [macOS]: double ``free()`` in `Process.environ()`_ when it fails
+  internally. This posed a risk of segfault.
+- 2662_, [macOS]: massive C code cleanup to guard against possible segfaults
+  which were (not so) sporadically spotted on CI.
+
+**Compatibility notes**
+
+- 2657_: stop publishing prebuilt Linux and Windows wheels for 32-bit Python.
+
+7.1.1
+=====
+
+2025-10-19
+
+**Enhancements**
+
+- 2645_, [SunOS]: dropped support for SunOS 10.
+- 2646_, [SunOS]: add CI test runner for SunOS.
+
+**Bug fixes**
+
+- 2641_, [SunOS]: cannot compile psutil from sources due to missing C include.
+- 2357_, [SunOS]: `Process.cmdline()`_ does not handle spaces properly. (patch
+  by Ben Raz)
+
+**Compatibility notes**
+
+* 2645_: SunOS 10 is no longer supported.
+
+7.1.0
+=====
+
+2025-09-17
+
+**Enhancements**
+
+- 2581_, [Windows]: publish ARM64 wheels.  (patch by Matthieu Darbois)
+- 2571_, [FreeBSD]: Dropped support for FreeBSD 8 and earlier. FreeBSD 8 was
+  maintained from 2009 to 2013.
+- 2575_: introduced `dprint` CLI tool to format .yml and .md files.
+
+**Bug fixes**
+
+- 2473_, [macOS]: Fix build issue on macOS 11 and lower.
+- 2494_, [Windows]: All APIs dealing with paths, such as
+  `Process.memory_maps()`_, `Process.exe()`_ and `Process.open_files()`_ does
+  not properly handle UNC paths. Paths such as ``\\??\\C:\\Windows\\Temp`` and
+  ``'\\Device\\HarddiskVolume1\\Windows\\Temp'`` are now converted to
+  ``C:\\Windows\\Temp``.  (patch by Ben Peddell)
+- 2506_, [Windows]: Windows service APIs had issues with unicode services using
+  special characters in their name.
+- 2514_, [Linux]: `Process.cwd()`_ sometimes fail with `FileNotFoundError` due
+  to a race condition.
+- 2526_, [Linux]: `Process.create_time()`_, which is used to univocally
+  identify a process over time, is subject to system clock updates, and as such
+  can lead to `Process.is_running()`_ returning a wrong result. A monotonic
+  creation time is now used instead.  (patch by Jonathan Kohler)
+- 2528_, [Linux]: `Process.children()`_ may raise ``PermissionError``. It will
+  now raise `AccessDenied`_ instead.
+- 2540_, [macOS]: `boot_time()`_ is off by 45 seconds (C precision issue).
+- 2541_, 2570_, 2578_ [Linux], [macOS], [NetBSD]: `Process.create_time()`_ does
+  not reflect system clock updates.
+- 2542_: if system clock is updated `Process.children()`_ and
+  `Process.parent()`_ may not be able to return the right information.
+- 2545_: [Illumos]: Fix handling of MIB2_UDP_ENTRY in `net_connections()`_.
+- 2552_, [Windows]: `boot_time()`_ didn't take into account the time spent
+  during suspend / hibernation.
+- 2560_, [Linux]: `Process.memory_maps()`_ may crash with `IndexError` on
+  RISCV64 due to a malformed `/proc/{PID}/smaps` file.  (patch by Julien
+  Stephan)
+- 2586_, [macOS], [CRITICAL]: fixed different places in C code which can
+  trigger a segfault.
+- 2604_, [Linux]: `virtual_memory()`_ "used" memory does not match recent
+  versions of ``free`` CLI utility.  (patch by Isaac K. Ko)
+- 2605_, [Linux]: `psutil.sensors_battery()` reports a negative amount for
+  seconds left.
+- 2607_, [Windows]: ``WindowsService.description()`` method may fail with
+  ``ERROR_NOT_FOUND``. Now it returns an empty string instead.
+- 2610:, [macOS], [CRITICAL]: fix `cpu_freq()`_ segfault on ARM architectures.
+
+**Compatibility notes**
+
+- 2571_: dropped support for FreeBSD 8 and earlier.
+
+7.0.0
+=====
+
+2025-02-13
+
+**Enhancements**
+
+- 669_, [Windows]: `net_if_addrs()`_ also returns the ``broadcast`` address
+  instead of ``None``.
+- 2480_: Python 2.7 is no longer supported. Latest version supporting Python
+  2.7 is psutil 6.1.X. Install it with: ``pip2 install psutil==6.1.*``.
+- 2490_: removed long deprecated ``Process.memory_info_ex()`` method. It was
+  deprecated in psutil 4.0.0, released 8 years ago. Substitute is
+  ``Process.memory_full_info()``.
+
+**Bug fixes**
+
+- 2496_, [Linux]: Avoid segfault (a cPython bug) on ``Process.memory_maps()``
+  for processes that use hundreds of GBs of memory.
+- 2502_, [macOS]: `virtual_memory()`_ now relies on ``host_statistics64``
+  instead of ``host_statistics``. This is the same approach used by ``vm_stat``
+  CLI tool, and should grant more accurate results.
+
+**Compatibility notes**
+
+- 2480_: Python 2.7 is no longer supported.
+- 2490_: removed long deprecated ``Process.memory_info_ex()`` method.
+
+6.1.1
+=====
+
+2024-12-19
 
 **Enhancements**
 
@@ -542,7 +715,7 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
 - 1684_, [Linux]: `disk_io_counters()`_ may raise ``ValueError`` on systems not
   having ``/proc/diskstats``.
 - 1695_, [Linux]: could not compile on kernels <= 2.6.13 due to
-  ``PSUTIL_HAVE_IOPRIO`` not being defined.  (patch by Anselm Kruis)
+  ``PSUTIL_HAS_IOPRIO`` not being defined.  (patch by Anselm Kruis)
 
 5.6.7
 =====

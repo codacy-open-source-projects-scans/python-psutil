@@ -16,8 +16,7 @@ For reference, here's the git history with original(ish) implementations:
 #include <Python.h>
 #include <sys/sysctl.h>
 
-#include "../../_psutil_common.h"
-#include "../../_psutil_posix.h"
+#include "../../arch/all/init.h"
 
 
 #define DECIKELVIN_2_CELSIUS(t) (t - 2731) / 10
@@ -30,11 +29,11 @@ psutil_sensors_battery(PyObject *self, PyObject *args) {
     int power_plugged;
     size_t size = sizeof(percent);
 
-    if (sysctlbyname("hw.acpi.battery.life", &percent, &size, NULL, 0))
+    if (psutil_sysctlbyname("hw.acpi.battery.life", &percent, size) != 0)
         goto error;
-    if (sysctlbyname("hw.acpi.battery.time", &minsleft, &size, NULL, 0))
+    if (psutil_sysctlbyname("hw.acpi.battery.time", &minsleft, size) != 0)
         goto error;
-    if (sysctlbyname("hw.acpi.acline", &power_plugged, &size, NULL, 0))
+    if (psutil_sysctlbyname("hw.acpi.acline", &power_plugged, size) != 0)
         goto error;
     return Py_BuildValue("iii", percent, minsleft, power_plugged);
 
@@ -43,7 +42,7 @@ error:
     if (errno == ENOENT)
         PyErr_SetString(PyExc_NotImplementedError, "no battery");
     else
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
     return NULL;
 }
 
@@ -57,16 +56,16 @@ psutil_sensors_cpu_temperature(PyObject *self, PyObject *args) {
     char sensor[26];
     size_t size = sizeof(current);
 
-    if (! PyArg_ParseTuple(args, "i", &core))
+    if (!PyArg_ParseTuple(args, "i", &core))
         return NULL;
-    sprintf(sensor, "dev.cpu.%d.temperature", core);
-    if (sysctlbyname(sensor, &current, &size, NULL, 0))
+    str_format(sensor, sizeof(sensor), "dev.cpu.%d.temperature", core);
+    if (psutil_sysctlbyname(sensor, &current, size) != 0)
         goto error;
     current = DECIKELVIN_2_CELSIUS(current);
 
     // Return -273 in case of failure.
-    sprintf(sensor, "dev.cpu.%d.coretemp.tjmax", core);
-    if (sysctlbyname(sensor, &tjmax, &size, NULL, 0))
+    str_format(sensor, sizeof(sensor), "dev.cpu.%d.coretemp.tjmax", core);
+    if (psutil_sysctlbyname(sensor, &tjmax, size) != 0)
         tjmax = 0;
     tjmax = DECIKELVIN_2_CELSIUS(tjmax);
 
@@ -76,7 +75,6 @@ error:
     if (errno == ENOENT)
         PyErr_SetString(PyExc_NotImplementedError, "no temperature sensors");
     else
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
     return NULL;
 }
-

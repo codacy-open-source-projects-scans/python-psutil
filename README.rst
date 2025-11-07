@@ -1,9 +1,9 @@
 |  |downloads| |stars| |forks| |contributors| |coverage|
-|  |version| |py-versions| |packages| |license|
-|  |github-actions-wheels|  |github-actions-bsd| |appveyor| |doc| |twitter| |tidelift|
+|  |version| |packages| |license|
+|  |github-actions-wheels|  |github-actions-bsd| |doc| |twitter| |tidelift|
 
 .. |downloads| image:: https://img.shields.io/pypi/dm/psutil.svg
-    :target: https://pepy.tech/project/psutil
+    :target: https://clickpy.clickhouse.com/dashboard/psutil
     :alt: Downloads
 
 .. |stars| image:: https://img.shields.io/github/stars/giampaolo/psutil.svg
@@ -26,10 +26,6 @@
     :target: https://github.com/giampaolo/psutil/actions?query=workflow%3Absd-tests
     :alt: FreeBSD, NetBSD, OpenBSD
 
-.. |appveyor| image:: https://img.shields.io/appveyor/build/giampaolo/psutil/master.svg?maxAge=3600&label=Windows%20(py2)
-    :target: https://ci.appveyor.com/project/giampaolo/psutil
-    :alt: Windows (Appveyor)
-
 .. |coverage| image:: https://coveralls.io/repos/github/giampaolo/psutil/badge.svg?branch=master
     :target: https://coveralls.io/github/giampaolo/psutil?branch=master
     :alt: Test coverage (coverall.io)
@@ -41,9 +37,6 @@
 .. |version| image:: https://img.shields.io/pypi/v/psutil.svg?label=pypi
     :target: https://pypi.org/project/psutil
     :alt: Latest version
-
-.. |py-versions| image:: https://img.shields.io/pypi/pyversions/psutil.svg
-    :alt: Supported Python versions
 
 .. |packages| image:: https://repology.org/badge/tiny-repos/python:psutil.svg
     :target: https://repology.org/metapackage/python:psutil/versions
@@ -98,8 +91,9 @@ psutil currently supports the following platforms:
 - **Sun Solaris**
 - **AIX**
 
-Supported Python versions are **2.7**, **3.6+** and
-`PyPy <http://pypy.org/>`__.
+Supported Python versions are cPython 3.6+ and `PyPy <https://pypy.org/>`__.
+Latest psutil version supporting Python 2.7 is
+`psutil 6.1.1 <https://pypi.org/project/psutil/6.1.1/>`__.
 
 Funding
 =======
@@ -459,6 +453,17 @@ Further process APIs
     >>> # waits for multiple processes to terminate
     >>> gone, alive = psutil.wait_procs(procs_list, timeout=3, callback=on_terminate)
     >>>
+
+Detecting memory leaks in C functions
+-------------------------------------
+
+.. code-block:: python
+
+    from psutil.test import MemoryLeakTestCase
+
+    class TestLeaks(MemoryLeakTestCase):
+        def test_fun(self):
+            self.execute(some_function)
 
 Windows services
 ----------------

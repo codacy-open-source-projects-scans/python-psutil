@@ -224,8 +224,8 @@ CPU
 
 .. function:: cpu_count(logical=True)
 
-  Return the number of logical CPUs in the system (same as `os.cpu_count`_
-  in Python 3.4) or ``None`` if undetermined.
+  Return the number of logical CPUs in the system (same as `os.cpu_count`_)
+  or ``None`` if undetermined.
   "logical CPUs" means the number of physical cores multiplied by the number
   of threads that can run on each core (this is known as Hyper Threading).
   If *logical* is ``False`` return the number of physical cores only, or
@@ -664,6 +664,11 @@ Network
      pconn(fd=-1, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status='SYN_SENT', pid=None)
      ...]
 
+  .. warning::
+    On Linux, retrieving some connections requires root privileges. If psutil is
+    not run as root, those connections are silently skipped instead of raising
+    ``PermissionError``. That means the returned list may be incomplete.
+
   .. note::
     (macOS and AIX) :class:`psutil.AccessDenied` is always raised unless running
     as root. This is a limitation of the OS and ``lsof`` does the same.
@@ -733,6 +738,9 @@ Network
 
   .. versionchanged:: 4.4.0 added support for *netmask* field on Windows which
     is no longer ``None``.
+
+  .. versionchanged:: 7.0.0 added support for *broadcast* field on Windows
+    which is no longer ``None``.
 
 .. function:: net_if_stats()
 
@@ -865,8 +873,10 @@ Other system info
 
 .. function:: boot_time()
 
-  Return the system boot time expressed in seconds since the epoch.
-  Example:
+  Return the system boot time expressed in seconds since the epoch (seconds
+  since January 1, 1970, at midnight UTC). The returned value is based on the
+  system clock, which means it may be affected by changes such as manual
+  adjustments or time synchronization (e.g. NTP).
 
   .. code-block:: python
 
@@ -932,7 +942,7 @@ Functions
 
   Every :class:`Process` instance is only created once, and then cached for the
   next time :func:`psutil.process_iter()` is called (if PID is still alive).
-  Cache can optionally be cleared via ``process_iter.clear_cache()``.
+  Cache can optionally be cleared via ``process_iter.cache_clear()``.
 
   *attrs* and *ad_value* have the same meaning as in :meth:`Process.as_dict()`.
   If *attrs* is specified :meth:`Process.as_dict()` result will be stored as a
@@ -1203,7 +1213,7 @@ Process class
 
     >>> import psutil
     >>> psutil.Process().exe()
-    '/usr/bin/python2.7'
+    '/usr/bin/python3'
 
   .. method:: cmdline()
 
@@ -1236,7 +1246,10 @@ Process class
   .. method:: create_time()
 
     The process creation time as a floating point number expressed in seconds
-    since the epoch. The return value is cached after first call.
+    since the epoch (seconds since January 1, 1970, at midnight UTC). The
+    return value, which is cached after first call, is based on the system
+    clock, which means it may be affected by changes such as manual adjustments
+    or time synchronization (e.g. NTP).
 
       >>> import psutil, datetime
       >>> p = psutil.Process()
@@ -1706,13 +1719,6 @@ Process class
     .. versionchanged::
       4.0.0 multiple fields are returned, not only `rss` and `vms`.
 
-  .. method:: memory_info_ex()
-
-    Same as :meth:`memory_info` (deprecated).
-
-    .. warning::
-      deprecated in version 4.0.0; use :meth:`memory_info` instead.
-
   .. method:: memory_full_info()
 
     This method returns the same information as :meth:`memory_info`, plus, on
@@ -1962,6 +1968,12 @@ Process class
        pconn(fd=119, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=60759), raddr=addr(ip='72.14.234.104', port=80), status='ESTABLISHED'),
        pconn(fd=123, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status='SYN_SENT')]
 
+    .. warning::
+      On Linux, retrieving connections for certain processes requires root
+      privileges. If psutil is not run as root, those connections are silently
+      skipped instead of raising :class:`psutil.AccessDenied`. That means
+      the returned list may be incomplete.
+
     .. note::
       (Solaris) UNIX sockets are not supported.
 
@@ -2061,7 +2073,7 @@ Process class
     positive integer >= 0 indicating the exit code.
     If the process was terminated by a signal return the negated value of the
     signal which caused the termination (e.g. ``-SIGTERM``).
-    If PID is not a children of `os.getpid`_ (current process) just wait until
+    If PID is not a child of `os.getpid`_ (current process) just wait until
     the process disappears and return ``None``.
     If PID does not exist return ``None`` immediately.
 
@@ -2209,6 +2221,81 @@ Example code:
    'start_type': 'manual',
    'status': 'stopped',
    'username': 'NT AUTHORITY\\LocalService'}
+
+Testing utilities
+=================
+
+The ``psutil.test`` subpackage includes a helper class to assist in writing
+memory-leak detection tests.
+
+.. class:: psutil.test.MemoryLeakTestCase
+
+  A testing framework for detecting memory leaks in functions, typically those
+  implemented in C that forget to ``free()`` heap memory, call ``Py_DECREF`` on
+  Python objects, and so on. It works by comparing the process's memory usage
+  before and after repeatedly calling the target function.
+
+  Detecting memory leaks reliably is inherently difficult (and probably
+  impossible) because of how the OS manages memory, garbage collection, and
+  caching. Memory usage may even decrease between runs. So this is not meant to
+  be bullet proof. To reduce false positives, when an increase in memory is
+  detected (mem > 0), the test is retried up to 5 times, increasing the
+  number of function calls each time. If memory continues to grow, the test is
+  considered a failure.
+  The test currently monitors RSS, VMS, and `USS <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__ memory.
+  ``mallinfo()`` on Linux and ``_heapwalk()`` on Windows could provide
+  even more precise results (see `issue 1275 <https://github.com/giampaolo/psutil/issues/1275>`__),
+  but these are not yet implemented.
+
+  In addition it also ensures that the target function does not leak
+  file descriptors (UNIX) or handles (Windows).
+
+  .. versionadded:: 7.2.0
+
+  .. warning::
+    This class is experimental, meaning its API or internal algorithm may
+    change in the future.
+
+  Usage example::
+
+    from psutil.test import MemoryLeakTestCase
+
+    class TestLeaks(MemoryLeakTestCase):
+        def test_fun(self):
+            self.execute(some_function)
+
+  Class attributes and methods:
+
+  .. attribute:: times
+    :value: 200
+
+    Number of times to call the tested function in each iteration.
+
+  .. attribute:: retries
+    :value: 5
+
+    Maximum number of retries if memory growth is detected.
+
+  .. attribute:: warmup_times
+    :value: 10
+
+    Number of warm-up calls before measurements begin.
+
+  .. attribute:: tolerance
+    :value: 0
+
+    Allowed memory difference (in bytes) before considering it a leak.
+
+  .. attribute:: verbosity
+    :value: 1
+
+    0 = no messages; 1 = print diagnostics when memory increases during the
+    test run.
+
+  .. method:: execute(fun, *, times=None, warmup_times=None, retries=None, tolerance=None)
+
+    Run a full leak test on a callable. If specified, the optional arguments
+    override the class attributes with the same name.
 
 Constants
 =========
@@ -2612,7 +2699,7 @@ Running tests
 
 ::
 
-    $ python3 -m psutil.tests
+    $ make test
 
 Debug mode
 ==========
@@ -2637,6 +2724,18 @@ On Windows:
   set PSUTIL_DEBUG=1 python.exe script.py
   psutil-debug [psutil/arch/windows/proc.c:90]> NtWow64ReadVirtualMemory64(pbi64.PebBaseAddress) -> 998 (Unknown error) (ignored)
 
+Python 2.7
+==========
+
+Latest version spporting Python 2.7 is `psutil 6.1.1 <https://pypi.org/project/psutil/6.1.1/>`__.
+The 6.1.X serie may receive critical bug-fixes but no new features. It will
+be maintained in the dedicated
+`python2 <https://github.com/giampaolo/psutil/tree/python2>`__ branch.
+To install it:
+
+::
+
+    $ python2 -m pip install psutil==6.1.*
 
 Security
 ========
@@ -2652,6 +2751,12 @@ If you want to develop psutil take a look at the `DEVGUIDE.rst`_.
 Platforms support history
 =========================
 
+* psutil 7.1.2 (XXXX-XX): publish wheels for free-threaded Python
+* psutil 7.1.2 (XXXX-XX): no longer publish wheels for 32-bit Python
+  (**Linux** and **Windows**)
+* psutil 7.1.1 (2025-10): drop **SunOS 10**
+* psutil 7.1.0 (2025-09): drop **FreeBSD 8**
+* psutil 7.0.0 (2025-02): drop Python 2.7
 * psutil 5.9.6 (2023-10): drop Python 3.4 and 3.5
 * psutil 5.9.1 (2022-05): drop Python 2.6
 * psutil 5.9.0 (2021-12): add **MidnightBSD**
@@ -2672,6 +2777,30 @@ PyPy3.
 Timeline
 ========
 
+- 2025-11-02:
+  `7.1.3 <https://pypi.org/project/psutil/7.1.2/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#713>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-7.1.2...release-7.1.3#files_bucket>`__
+- 2025-10-25:
+  `7.1.2 <https://pypi.org/project/psutil/7.1.2/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#712>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-7.1.1...release-7.1.2#files_bucket>`__
+- 2025-10-19:
+  `7.1.1 <https://pypi.org/project/psutil/7.1.1/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#711>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-7.1.0...release-7.1.1#files_bucket>`__
+- 2025-09-17:
+  `7.1.0 <https://pypi.org/project/psutil/7.1.0/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#710>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-7.0.0...release-7.1.1#files_bucket>`__
+- 2025-02-13:
+  `7.0.0 <https://pypi.org/project/psutil/7.0.0/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#700>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-6.1.1...release-7.0.0#files_bucket>`__
+- 2024-12-19:
+  `6.1.1 <https://pypi.org/project/psutil/6.1.1/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#611>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-6.1.0...release-6.1.1#files_bucket>`__
 - 2024-10-17:
   `6.1.0 <https://pypi.org/project/psutil/6.1.0/#files>`__ -
   `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#610>`__ -

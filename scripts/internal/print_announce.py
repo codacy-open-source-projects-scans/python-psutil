@@ -16,7 +16,6 @@ import sys
 
 from psutil import __version__
 
-
 HERE = os.path.abspath(os.path.dirname(__file__))
 ROOT = os.path.realpath(os.path.join(HERE, '..', '..'))
 HISTORY = os.path.join(ROOT, 'HISTORY.rst')
@@ -49,8 +48,7 @@ running processes. It implements many functionalities offered by command \
 line tools such as: ps, top, lsof, netstat, ifconfig, who, df, kill, free, \
 nice, ionice, iostat, iotop, uptime, pidof, tty, taskset, pmap. It \
 currently supports Linux, Windows, macOS, Sun Solaris, FreeBSD, OpenBSD, \
-NetBSD and AIX.  Supported Python versions are 2.7 and 3.6+. PyPy is also \
-known to work.
+NetBSD and AIX. Supported Python versions are cPython 3.6+ and PyPy.
 
 What's new
 ==========

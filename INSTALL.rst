@@ -47,6 +47,11 @@ RedHat / CentOS::
     sudo yum install gcc python3-devel
     pip install --no-binary :all: psutil
 
+Arch::
+
+    sudo pacman -S cmake gcc python
+    pip install --no-binary :all: psutil
+
 Alpine::
 
     sudo apk add gcc python3-dev musl-dev linux-headers
@@ -62,11 +67,14 @@ MinGW is not supported. Once Visual Studio is installed do::
 
     pip install --no-binary :all: psutil
 
-macOS (build)
--------------
+macOS
+-----
 
-Install `Xcode <https://developer.apple.com/downloads/?name=Xcode>`__ then run::
+Install Xcode first:
 
+::
+
+    xcode-select --install
     pip install --no-binary :all: psutil
 
 FreeBSD
@@ -116,7 +124,6 @@ Troubleshooting
 Install pip
 -----------
 
-Pip is shipped by default with Python 2.7.9+ and 3.4+.
 If you don't have pip you can install it with wget::
 
     wget https://bootstrap.pypa.io/get-pip.py -O - | python3

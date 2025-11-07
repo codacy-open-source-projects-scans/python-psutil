@@ -10,9 +10,8 @@ import os
 import shlex
 import subprocess
 
-
 SKIP_EXTS = ('.png', '.jpg', '.jpeg', '.svg')
-SKIP_FILES = 'appveyor.yml'
+SKIP_FILES = ()
 SKIP_PREFIXES = ('.ci/', '.github/')
 
 
@@ -35,6 +34,8 @@ def main():
 
     for file in sorted(files):
         print("include " + file)
+
+    print("recursive-exclude docs/_static *")
 
 
 if __name__ == '__main__':

@@ -23,7 +23,11 @@ def csum(file, kind):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        'dir', type=str, help='directory containing tar.gz or wheel files'
+        "dir",
+        type=str,
+        nargs="?",
+        help="directory containing tar.gz or wheel files",
+        default="dist/",
     )
     args = parser.parse_args()
     for name in sorted(os.listdir(args.dir)):
@@ -31,12 +35,9 @@ def main():
         if os.path.isfile(file):
             md5 = csum(file, "md5")
             sha256 = csum(file, "sha256")
-            print(
-                "%s\nmd5: %s\nsha256: %s\n"
-                % (os.path.basename(file), md5, sha256)
-            )
+            print(f"{os.path.basename(file)}\nmd5: {md5}\nsha256: {sha256}\n")
         else:
-            print("skipping %r (not a file)" % file)
+            print(f"skipping {file!r} (not a file)")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@
  * Define Windows structs and constants which are considered private.
  */
 
+// clang-format off
 #if !defined(__NTEXTAPI_H__)
 #define __NTEXTAPI_H__
 #include <winternl.h>
@@ -660,6 +661,12 @@ ULONGLONG (CALLBACK *_GetTickCount64) (
 
 #define GetTickCount64 _GetTickCount64
 
+VOID(CALLBACK *_QueryInterruptTime) (
+    PULONGLONG lpInterruptTime
+);
+
+#define QueryInterruptTime _QueryInterruptTime
+
 NTSTATUS (NTAPI *_NtQueryObject) (
     HANDLE Handle,
     OBJECT_INFORMATION_CLASS ObjectInformationClass,
@@ -705,3 +712,4 @@ ULONG (WINAPI *_RtlNtStatusToDosErrorNoTeb) (
 #define RtlNtStatusToDosErrorNoTeb _RtlNtStatusToDosErrorNoTeb
 
 #endif // __NTEXTAPI_H__
+// clang-format on

@@ -12,7 +12,7 @@
 #include <sys/swap.h>
 #include <sys/param.h>
 
-#include "../../_psutil_posix.h"
+#include "../../arch/all/init.h"
 
 
 PyObject *
@@ -29,42 +29,35 @@ psutil_virtual_mem(PyObject *self, PyObject *args) {
     long pagesize = psutil_getpagesize();
 
     size = sizeof(total_physmem);
-    if (sysctl(physmem_mib, 2, &total_physmem, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(physmem_mib, 2, &total_physmem, size) != 0)
         return NULL;
-    }
 
     size = sizeof(uvmexp);
-    if (sysctl(uvmexp_mib, 2, &uvmexp, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(uvmexp_mib, 2, &uvmexp, size) != 0)
         return NULL;
-    }
 
     size = sizeof(bcstats);
-    if (sysctl(bcstats_mib, 3, &bcstats, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(bcstats_mib, 3, &bcstats, size) != 0)
         return NULL;
-    }
 
     size = sizeof(vmdata);
-    if (sysctl(vmmeter_mib, 2, &vmdata, &size, NULL, 0) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+    if (psutil_sysctl(vmmeter_mib, 2, &vmdata, size) != 0)
         return NULL;
-    }
 
-    return Py_BuildValue("KKKKKKKK",
+    return Py_BuildValue(
+        "KKKKKKKK",
         // Note: many programs calculate total memory as
         // "uvmexp.npages * pagesize" but this is incorrect and does not
         // match "sysctl | grep hw.physmem".
-        (unsigned long long) total_physmem,
-        (unsigned long long) uvmexp.free * pagesize,
-        (unsigned long long) uvmexp.active * pagesize,
-        (unsigned long long) uvmexp.inactive * pagesize,
-        (unsigned long long) uvmexp.wired * pagesize,
+        (unsigned long long)total_physmem,
+        (unsigned long long)uvmexp.free * pagesize,
+        (unsigned long long)uvmexp.active * pagesize,
+        (unsigned long long)uvmexp.inactive * pagesize,
+        (unsigned long long)uvmexp.wired * pagesize,
         // this is how "top" determines it
-        (unsigned long long) bcstats.numbufpages * pagesize,  // cached
-        (unsigned long long) 0,  // buffers
-        (unsigned long long) vmdata.t_vmshr + vmdata.t_rmshr  // shared
+        (unsigned long long)bcstats.numbufpages * pagesize,  // cached
+        (unsigned long long)0,  // buffers
+        (unsigned long long)vmdata.t_vmshr + vmdata.t_rmshr  // shared
     );
 }
 
@@ -76,7 +69,7 @@ psutil_swap_mem(PyObject *self, PyObject *args) {
     int nswap, i;
 
     if ((nswap = swapctl(SWAP_NSWAP, 0, 0)) == 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
         return NULL;
     }
 
@@ -86,7 +79,7 @@ psutil_swap_mem(PyObject *self, PyObject *args) {
     }
 
     if (swapctl(SWAP_STATS, swdev, nswap) == -1) {
-        PyErr_SetFromErrno(PyExc_OSError);
+        psutil_oserror();
         goto error;
     }
 

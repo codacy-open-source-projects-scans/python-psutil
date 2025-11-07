@@ -32,7 +32,6 @@ Author: Giampaolo Rodola' <g.rodola@gmail.com>
 import sys
 import time
 
-
 try:
     import curses
 except ImportError:
@@ -40,7 +39,6 @@ except ImportError:
 
 import psutil
 from psutil._common import bytes2human
-
 
 win = curses.initscr()
 lineno = 0
@@ -71,7 +69,7 @@ def poll(interval):
     """
     # first get a list of all processes and disk io counters
     procs = list(psutil.process_iter())
-    for p in procs[:]:
+    for p in procs.copy():
         try:
             p._before = p.io_counters()
         except psutil.Error:
@@ -83,7 +81,7 @@ def poll(interval):
     time.sleep(interval)
 
     # then retrieve the same info again
-    for p in procs[:]:
+    for p in procs.copy():
         with p.oneshot():
             try:
                 p._after = p.io_counters()
@@ -115,20 +113,20 @@ def poll(interval):
 def refresh_window(procs, disks_read, disks_write):
     """Print results on screen by using curses."""
     curses.endwin()
-    templ = "%-5s %-7s %11s %11s  %s"
+    templ = "{:<5} {:<7} {:>11} {:>11}  {}"
     win.erase()
 
-    disks_tot = "Total DISK READ: %s | Total DISK WRITE: %s" % (
+    disks_tot = "Total DISK READ: {} | Total DISK WRITE: {}".format(
         bytes2human(disks_read),
         bytes2human(disks_write),
     )
     printl(disks_tot)
 
-    header = templ % ("PID", "USER", "DISK READ", "DISK WRITE", "COMMAND")
+    header = templ.format("PID", "USER", "DISK READ", "DISK WRITE", "COMMAND")
     printl(header, highlight=True)
 
     for p in procs:
-        line = templ % (
+        line = templ.format(
             p.pid,
             p._username[:7],
             bytes2human(p._read_per_sec),

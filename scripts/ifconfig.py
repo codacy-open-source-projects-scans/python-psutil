@@ -42,13 +42,11 @@ wlp3s0:
          broadcast : ff:ff:ff:ff:ff:ff
 """
 
-from __future__ import print_function
 
 import socket
 
 import psutil
 from psutil._common import bytes2human
-
 
 af_map = {
     socket.AF_INET: 'IPv4',
@@ -67,13 +65,12 @@ def main():
     stats = psutil.net_if_stats()
     io_counters = psutil.net_io_counters(pernic=True)
     for nic, addrs in psutil.net_if_addrs().items():
-        print("%s:" % (nic))
+        print(f"{nic}:")
         if nic in stats:
             st = stats[nic]
             print("    stats          : ", end='')
             print(
-                "speed=%sMB, duplex=%s, mtu=%s, up=%s"
-                % (
+                "speed={}MB, duplex={}, mtu={}, up={}".format(
                     st.speed,
                     duplex_map[st.duplex],
                     st.mtu,
@@ -84,8 +81,7 @@ def main():
             io = io_counters[nic]
             print("    incoming       : ", end='')
             print(
-                "bytes=%s, pkts=%s, errs=%s, drops=%s"
-                % (
+                "bytes={}, pkts={}, errs={}, drops={}".format(
                     bytes2human(io.bytes_recv),
                     io.packets_recv,
                     io.errin,
@@ -94,8 +90,7 @@ def main():
             )
             print("    outgoing       : ", end='')
             print(
-                "bytes=%s, pkts=%s, errs=%s, drops=%s"
-                % (
+                "bytes={}, pkts={}, errs={}, drops={}".format(
                     bytes2human(io.bytes_sent),
                     io.packets_sent,
                     io.errout,
@@ -103,14 +98,15 @@ def main():
                 )
             )
         for addr in addrs:
-            print("    %-4s" % af_map.get(addr.family, addr.family), end="")
-            print(" address   : %s" % addr.address)
+            fam = "    {:<4}".format(af_map.get(addr.family, addr.family))
+            print(fam, end="")
+            print(f" address   : {addr.address}")
             if addr.broadcast:
-                print("         broadcast : %s" % addr.broadcast)
+                print(f"         broadcast : {addr.broadcast}")
             if addr.netmask:
-                print("         netmask   : %s" % addr.netmask)
+                print(f"         netmask   : {addr.netmask}")
             if addr.ptp:
-                print("      p2p       : %s" % addr.ptp)
+                print(f"      p2p       : {addr.ptp}")
         print()
 
 

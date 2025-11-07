@@ -6,7 +6,6 @@
 
 import sys
 
-
 try:
     import pip  # noqa: F401
 except ImportError:
@@ -18,18 +17,9 @@ else:
 import os
 import ssl
 import tempfile
+from urllib.request import urlopen
 
-
-PY3 = sys.version_info[0] >= 3
-if PY3:
-    from urllib.request import urlopen
-
-    URL = "https://bootstrap.pypa.io/get-pip.py"
-
-else:
-    from urllib2 import urlopen
-
-    URL = "https://bootstrap.pypa.io/pip/2.7/get-pip.py"
+URL = "https://bootstrap.pypa.io/get-pip.py"
 
 
 def main():
@@ -39,7 +29,7 @@ def main():
         else None
     )
     with tempfile.NamedTemporaryFile(suffix=".py") as f:
-        print("downloading %s into %s" % (URL, f.name))
+        print(f"downloading {URL} into {f.name}")
         kwargs = dict(context=ssl_context) if ssl_context else {}
         req = urlopen(URL, **kwargs)
         data = req.read()
@@ -49,7 +39,10 @@ def main():
         f.flush()
         print("download finished, installing pip")
 
-        code = os.system("%s %s --user --upgrade" % (sys.executable, f.name))
+        code = os.system(
+            f"{sys.executable} {f.name} --user --upgrade"
+            " --break-system-packages"
+        )
 
     sys.exit(code)
 

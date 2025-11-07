@@ -11,7 +11,6 @@ dist upload.
 import argparse
 import re
 
-
 summary = """\
 Quick links
 ===========
@@ -36,7 +35,7 @@ Sponsors
 
 `Add your logo <https://github.com/sponsors/giampaolo>`__.
 
-Example usages"""  # noqa
+Example usages"""
 
 
 def main():
