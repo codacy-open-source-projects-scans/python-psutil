@@ -11,6 +11,13 @@ XXXX-XX-XX
 - 2680_: unit tests are no longer installed / part of the distribution. They
   now live under `tests/` instead of `psutil/tests`.
 
+**Bug fixes**
+
+* 2684_, [FreeBSD], [critical]: compilation fails on FreeBSD 14 due to missing
+  include.
+* 2691_, [Windows]: fix memory leak in `net_if_stats()`_ memory leak due to
+  missing ``Py_CLEAR``.
+
 **Compatibility notes**
 
 - 2680_: `import psutil.tests` no longer works (but it was never documented to
