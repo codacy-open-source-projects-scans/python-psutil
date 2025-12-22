@@ -77,6 +77,7 @@ Py_GIL_DISABLED = sysconfig.get_config_var("Py_GIL_DISABLED")
 # Test deps, installable via `pip install .[test]` or
 # `make install-pydeps-test`.
 TEST_DEPS = [
+    "psleak",
     "pytest",
     "pytest-instafail",
     "pytest-xdist",
@@ -487,7 +488,7 @@ def main():
         url='https://github.com/giampaolo/psutil',
         platforms='Platform Independent',
         license='BSD-3-Clause',
-        packages=['psutil', 'psutil.test'],
+        packages=['psutil'],
         ext_modules=[ext],
         options=options,
         classifiers=[

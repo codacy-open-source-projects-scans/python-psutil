@@ -136,7 +136,7 @@ test-platform:  ## Run specific platform tests only.
 	$(RUN_TEST) tests/test_`$(PYTHON) -c 'import psutil; print([x.lower() for x in ("LINUX", "BSD", "OSX", "SUNOS", "WINDOWS", "AIX") if getattr(psutil, x)][0])'`.py $(ARGS)
 
 test-memleaks:  ## Memory leak tests.
-	$(RUN_TEST) tests/test_memleaks.py $(ARGS)
+	PYTHONMALLOC=malloc $(RUN_TEST) -k test_memleaks.py $(ARGS)
 
 test-sudo:  ## Run tests requiring root privileges.
 	# Use unittest runner because pytest may not be installed as root.
@@ -145,8 +145,7 @@ test-sudo:  ## Run tests requiring root privileges.
 test-last-failed:  ## Re-run tests which failed on last run
 	$(RUN_TEST) --last-failed $(ARGS)
 
-test-coverage:  ## Run test coverage.
-	# Note: coverage options are controlled by .coveragerc file
+coverage:  ## Run test coverage.
 	rm -rf .coverage htmlcov
 	$(PYTHON_ENV_VARS) $(PYTHON) -m coverage run -m pytest --ignore=tests/test_memleaks.py $(ARGS)
 	$(PYTHON) -m coverage report
@@ -246,7 +245,7 @@ ci-test-cibuildwheel:  ## Run CI tests for the built wheels.
 	mkdir -p .tests
 	cp -r tests .tests/
 	cd .tests/ && PYTHONPATH=$$(pwd) $(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k "not test_memleaks.py"
-	cd .tests/ && PYTHONPATH=$$(pwd) $(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k "test_memleaks.py"
+	cd .tests/ && PYTHONPATH=$$(pwd) $(PYTHON_ENV_VARS) PYTHONMALLOC=malloc $(PYTHON) -m pytest -k "test_memleaks.py"
 
 ci-check-dist:  ## Run all sanity checks re. to the package distribution.
 	$(PYTHON) -m pip install -U setuptools virtualenv twine check-manifest validate-pyproject[all] abi3audit
