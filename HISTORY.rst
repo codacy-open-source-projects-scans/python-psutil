@@ -1,14 +1,25 @@
 *Bug tracker at https://github.com/giampaolo/psutil/issues*
 
-7.2.2 (IN DEVELOPMENT)
-======================
+7.2.2
+=====
 
-XXXX-XX
+2026-01-18
+
+**Enhancements**
+
+- 2705_: [Linux]: `Process.wait()`_ now uses ``pidfd_open()`` + ``poll()`` for
+  waiting, resulting in no busy loop and faster response times. Requires
+  Linux >= 5.3 and Python >= 3.9. Falls back to traditional polling if
+  unavailable.
+- 2705_: [macOS], [BSD]: `Process.wait()`_ now uses ``kqueue()`` for waiting,
+  resulting in no busy loop and faster response times.
 
 **Bug fixes**
 
 - 2701_, [macOS]: fix compilation error on macOS < 10.7.  (patch by Sergey
   Fedorov)
+- 2707_, [macOS]: fix potential memory leaks in error paths of
+  `Process.memory_full_info()` and `Process.threads()`.
 
 7.2.1
 =====

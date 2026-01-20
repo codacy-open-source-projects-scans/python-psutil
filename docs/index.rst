@@ -2093,6 +2093,10 @@ Process class
     .. versionchanged:: 5.7.1 on POSIX, in case of negative signal, return it
       as a human readable `enum`_.
 
+    .. versionchanged:: 7.2.2 on Linux (>= 5.3, Python >= 3.9) and macOS/BSD,
+      use ``pidfd_open()`` and ``kqueue()`` respectively, instead of less
+      efficient busy-loop polling.
+
 .. class:: Popen(*args, **kwargs)
 
   Same as `subprocess.Popen`_ but in addition it provides all
@@ -2772,6 +2776,10 @@ PyPy3.
 Timeline
 ========
 
+- 2026-01-18:
+  `7.2.2 <https://pypi.org/project/psutil/7.2.2/#files>`__ -
+  `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#721>`__ -
+  `diff <https://github.com/giampaolo/psutil/compare/release-7.2.1...release-7.2.2#files_bucket>`__
 - 2025-12-29:
   `7.2.1 <https://pypi.org/project/psutil/7.2.1/#files>`__ -
   `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#721>`__ -
