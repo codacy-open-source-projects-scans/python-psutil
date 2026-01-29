@@ -2100,7 +2100,7 @@ Process class
       If none of these mechanisms are available, the function falls back to a
       busy loop (non-blocking call and short sleeps).
 
-    .. versionchanged:: 3.15
+    .. versionchanged:: 5.7.2
       if *timeout* is not ``None``, use efficient event-driven implementation
       on Linux >= 5.3 and macOS / BSD.
 
@@ -2793,7 +2793,7 @@ PyPy3.
 Timeline
 ========
 
-- 2026-01-18:
+- 2026-01-28:
   `7.2.2 <https://pypi.org/project/psutil/7.2.2/#files>`__ -
   `what's new <https://github.com/giampaolo/psutil/blob/master/HISTORY.rst#721>`__ -
   `diff <https://github.com/giampaolo/psutil/compare/release-7.2.1...release-7.2.2#files_bucket>`__
