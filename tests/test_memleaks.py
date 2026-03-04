@@ -29,6 +29,7 @@ from . import HAS_PROC_CPU_NUM
 from . import HAS_PROC_ENVIRON
 from . import HAS_PROC_IO_COUNTERS
 from . import HAS_PROC_IONICE
+from . import HAS_PROC_MEMORY_FOOTPRINT
 from . import HAS_PROC_MEMORY_MAPS
 from . import HAS_PROC_RLIMIT
 from . import HAS_SENSORS_BATTERY
@@ -160,8 +161,12 @@ class TestProcessObjectLeaks(MemoryLeakTestCase):
     def test_memory_info(self):
         self.execute(self.proc.memory_info)
 
-    def test_memory_full_info(self):
-        self.execute(self.proc.memory_full_info)
+    def test_memory_info_ex(self):
+        self.execute(self.proc.memory_info_ex)
+
+    @pytest.mark.skipif(not HAS_PROC_MEMORY_FOOTPRINT, reason="not supported")
+    def test_memory_footprint(self):
+        self.execute(self.proc.memory_footprint)
 
     @pytest.mark.skipif(not POSIX, reason="POSIX only")
     def test_terminal(self):
@@ -199,6 +204,9 @@ class TestProcessObjectLeaks(MemoryLeakTestCase):
     def test_memory_maps(self):
         self.execute(self.proc.memory_maps, times=60, retries=10)
 
+    def test_page_faults(self):
+        self.execute(self.proc.page_faults)
+
     @pytest.mark.skipif(not LINUX, reason="LINUX only")
     @pytest.mark.skipif(not HAS_PROC_RLIMIT, reason="not supported")
     def test_rlimit(self):
@@ -234,8 +242,8 @@ class TestProcessObjectLeaks(MemoryLeakTestCase):
         self.execute(self.proc.environ)
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
-    def test_proc_info(self):
-        self.execute(lambda: cext.proc_info(os.getpid()))
+    def test_proc_oneshot(self):
+        self.execute(lambda: cext.proc_oneshot(os.getpid()))
 
 
 class TestTerminatedProcessLeaks(TestProcessObjectLeaks):
@@ -284,11 +292,11 @@ class TestTerminatedProcessLeaks(TestProcessObjectLeaks):
         def test_wait(self):
             self.execute(self.proc.wait)
 
-        def test_proc_info(self):
+        def test_proc_oneshot(self):
             # test dual implementation
             def call():
                 try:
-                    return cext.proc_info(self.proc.pid)
+                    return cext.proc_oneshot(self.proc.pid)
                 except ProcessLookupError:
                     pass
 

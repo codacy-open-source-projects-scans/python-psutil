@@ -57,31 +57,6 @@ PROC_STATUSES = {
     cext.SZOMB: _common.STATUS_ZOMBIE,
 }
 
-kinfo_proc_map = dict(
-    ppid=0,
-    ruid=1,
-    euid=2,
-    suid=3,
-    rgid=4,
-    egid=5,
-    sgid=6,
-    ttynr=7,
-    ctime=8,
-    status=9,
-    name=10,
-)
-
-pidtaskinfo_map = dict(
-    cpuutime=0,
-    cpustime=1,
-    rss=2,
-    vms=3,
-    pfaults=4,
-    pageins=5,
-    numthreads=6,
-    volctxsw=7,
-)
-
 
 # =====================================================================
 # --- memory
@@ -369,31 +344,27 @@ class Process:
 
     @wrap_exceptions
     @memoize_when_activated
-    def _get_kinfo_proc(self):
+    def _oneshot_kinfo(self):
         # Note: should work with all PIDs without permission issues.
-        ret = cext.proc_kinfo_oneshot(self.pid)
-        assert len(ret) == len(kinfo_proc_map)
-        return ret
+        return cext.proc_oneshot_kinfo(self.pid)
 
     @wrap_exceptions
     @memoize_when_activated
-    def _get_pidtaskinfo(self):
+    def _oneshot_pidtaskinfo(self):
         # Note: should work for PIDs owned by user only.
-        ret = cext.proc_pidtaskinfo_oneshot(self.pid)
-        assert len(ret) == len(pidtaskinfo_map)
-        return ret
+        return cext.proc_oneshot_pidtaskinfo(self.pid)
 
     def oneshot_enter(self):
-        self._get_kinfo_proc.cache_activate(self)
-        self._get_pidtaskinfo.cache_activate(self)
+        self._oneshot_kinfo.cache_activate(self)
+        self._oneshot_pidtaskinfo.cache_activate(self)
 
     def oneshot_exit(self):
-        self._get_kinfo_proc.cache_deactivate(self)
-        self._get_pidtaskinfo.cache_deactivate(self)
+        self._oneshot_kinfo.cache_deactivate(self)
+        self._oneshot_pidtaskinfo.cache_deactivate(self)
 
     @wrap_exceptions
     def name(self):
-        name = self._get_kinfo_proc()[kinfo_proc_map['name']]
+        name = self._oneshot_kinfo()["name"]
         return name if name is not None else cext.proc_name(self.pid)
 
     @wrap_exceptions
@@ -410,7 +381,7 @@ class Process:
 
     @wrap_exceptions
     def ppid(self):
-        self._ppid = self._get_kinfo_proc()[kinfo_proc_map['ppid']]
+        self._ppid = self._oneshot_kinfo()["ppid"]
         return self._ppid
 
     @wrap_exceptions
@@ -419,25 +390,17 @@ class Process:
 
     @wrap_exceptions
     def uids(self):
-        rawtuple = self._get_kinfo_proc()
-        return ntp.puids(
-            rawtuple[kinfo_proc_map['ruid']],
-            rawtuple[kinfo_proc_map['euid']],
-            rawtuple[kinfo_proc_map['suid']],
-        )
+        d = self._oneshot_kinfo()
+        return ntp.puids(d["ruid"], d["euid"], d["suid"])
 
     @wrap_exceptions
     def gids(self):
-        rawtuple = self._get_kinfo_proc()
-        return ntp.puids(
-            rawtuple[kinfo_proc_map['rgid']],
-            rawtuple[kinfo_proc_map['egid']],
-            rawtuple[kinfo_proc_map['sgid']],
-        )
+        d = self._oneshot_kinfo()
+        return ntp.puids(d["rgid"], d["egid"], d["sgid"])
 
     @wrap_exceptions
     def terminal(self):
-        tty_nr = self._get_kinfo_proc()[kinfo_proc_map['ttynr']]
+        tty_nr = self._oneshot_kinfo()["ttynr"]
         tmap = _psposix.get_terminal_map()
         try:
             return tmap[tty_nr]
@@ -446,34 +409,32 @@ class Process:
 
     @wrap_exceptions
     def memory_info(self):
-        rawtuple = self._get_pidtaskinfo()
-        return ntp.pmem(
-            rawtuple[pidtaskinfo_map['rss']],
-            rawtuple[pidtaskinfo_map['vms']],
-            rawtuple[pidtaskinfo_map['pfaults']],
-            rawtuple[pidtaskinfo_map['pageins']],
-        )
+        d = self._oneshot_pidtaskinfo()
+        return ntp.pmem(d["rss"], d["vms"])
 
     @wrap_exceptions
-    def memory_full_info(self):
-        basic_mem = self.memory_info()
+    def memory_info_ex(self):
+        return cext.proc_memory_info_ex(self.pid)
+
+    @wrap_exceptions
+    def memory_footprint(self):
         uss = cext.proc_memory_uss(self.pid)
-        return ntp.pfullmem(*basic_mem + (uss,))
+        return ntp.pfootprint(uss)
+
+    @wrap_exceptions
+    def page_faults(self):
+        d = self._oneshot_pidtaskinfo()
+        return ntp.ppagefaults(d["minor_faults"], d["major_faults"])
 
     @wrap_exceptions
     def cpu_times(self):
-        rawtuple = self._get_pidtaskinfo()
-        return ntp.pcputimes(
-            rawtuple[pidtaskinfo_map['cpuutime']],
-            rawtuple[pidtaskinfo_map['cpustime']],
-            # children user / system times are not retrievable (set to 0)
-            0.0,
-            0.0,
-        )
+        d = self._oneshot_pidtaskinfo()
+        # children user / system times are not retrievable (set to 0)
+        return ntp.pcputimes(d["cpu_utime"], d["cpu_stime"], 0.0, 0.0)
 
     @wrap_exceptions
     def create_time(self, monotonic=False):
-        ctime = self._get_kinfo_proc()[kinfo_proc_map['ctime']]
+        ctime = self._oneshot_kinfo()["ctime"]
         if not monotonic:
             ctime = adjust_proc_create_time(ctime)
         return ctime
@@ -483,12 +444,12 @@ class Process:
         # Unvoluntary value seems not to be available;
         # getrusage() numbers seems to confirm this theory.
         # We set it to 0.
-        vol = self._get_pidtaskinfo()[pidtaskinfo_map['volctxsw']]
+        vol = self._oneshot_pidtaskinfo()["volctxsw"]
         return ntp.pctxsw(vol, 0)
 
     @wrap_exceptions
     def num_threads(self):
-        return self._get_pidtaskinfo()[pidtaskinfo_map['numthreads']]
+        return self._oneshot_pidtaskinfo()["num_threads"]
 
     @wrap_exceptions
     def open_files(self):
@@ -535,7 +496,7 @@ class Process:
 
     @wrap_exceptions
     def status(self):
-        code = self._get_kinfo_proc()[kinfo_proc_map['status']]
+        code = self._oneshot_kinfo()["status"]
         # XXX is '?' legit? (we're not supposed to return it anyway)
         return PROC_STATUSES.get(code, '?')
 

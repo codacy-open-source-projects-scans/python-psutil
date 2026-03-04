@@ -91,7 +91,9 @@ install-git-hooks:  ## Install GIT pre-commit hook.
 # Tests
 # ===================================================================
 
-RUN_TEST = $(PYTHON_ENV_VARS) $(PYTHON) -m pytest
+# disable cache on Windows because it causes "Permission denied" errors
+_PYTEST_EXTRA != if [ "$$OS" = "Windows_NT" ]; then printf '%s' '-p no:cacheprovider'; fi
+RUN_TEST = $(PYTHON_ENV_VARS) $(PYTHON) -m pytest $(_PYTEST_EXTRA)
 
 test:  ## Run all tests (except memleak tests).
 	# To run a specific test do `make test ARGS=tests/test_process.py::TestProcess::test_cmdline`
@@ -134,7 +136,7 @@ test-posix:  ## POSIX specific tests.
 	$(RUN_TEST) -k "test_posix.py or posix_ or Posix" $(ARGS)
 
 test-platform:  ## Run specific platform tests only.
-	$(RUN_TEST) tests/test_`$(PYTHON) -c 'import psutil; print([x.lower() for x in ("LINUX", "BSD", "OSX", "SUNOS", "WINDOWS", "AIX") if getattr(psutil, x)][0])'`.py $(ARGS)
+	$(RUN_TEST) -k test_`$(PYTHON) -c 'import psutil; print([x.lower() for x in ("LINUX", "BSD", "OSX", "SUNOS", "WINDOWS", "AIX") if getattr(psutil, x)][0])'`.py $(ARGS)
 
 test-memleaks:  ## Memory leak tests.
 	PYTHONMALLOC=malloc $(RUN_TEST) -k test_memleaks.py $(ARGS)

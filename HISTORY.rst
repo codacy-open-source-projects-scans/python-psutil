@@ -1,5 +1,64 @@
 *Bug tracker at https://github.com/giampaolo/psutil/issues*
 
+8.0.0 (IN DEVELOPMENT)
+======================
+
+**Enhancements**
+
+- 2729_: New `Process.page_faults()`_ method, returning a ``(minor, major)``
+  namedtuple.
+- 2731_, 2736_, 2723_, 2733_: Reorganization of process memory APIs.
+
+  - Add new `Process.memory_info_ex()`_ method, which extends
+    `Process.memory_info()`_ with platform-specific metrics:
+
+    - Linux: *peak_rss*, *peak_vms*, *rss_anon*, *rss_file*, *rss_shmem*,
+      *swap*, *hugetlb*
+    - macOS: *peak_rss*, *rss_anon*, *rss_file*, *wired*, *compressed*,
+      *phys_footprint*
+    - Windows: *virtual*, *peak_virtual*
+
+  - Add new `Process.memory_footprint()`_ method, which returns *uss*, *pss*
+    and *swap* metrics (what `Process.memory_full_info()`_ used to return,
+    which is now **deprecated**).
+
+  - `Process.memory_info()`_ named tuple changed:
+
+    - BSD: added *peak_rss*.
+
+    - Linux: *lib* and *dirty* removed (always 0 since Linux 2.6). Deprecated
+      aliases returning 0 and emitting `DeprecationWarning` are kept.
+
+    - macOS: *pfaults* and *pageins* removed with **no
+      backward-compataliases**. Use `Process.page_faults()`_ instead.
+
+    - Windows: renamed fields (old names kept as deprecated aliases): *wset* →
+      *rss*, *peak_wset* → *peak_rss*, *pagefile* / *private* → *vms*,
+      *peak_pagefile* → *peak_vms*.
+
+  - `Process.memory_full_info()`_ is **deprecated**. Use the new
+    `Process.memory_footprint()`_ instead.
+
+**Bug fixes**
+
+- 2726_, [macOS]: `Process.num_ctx_switches()`_ return an unusual high number
+  due to a C type precision issue.
+- 2411_ [macOS]: `Process.cpu_times()`_ and `Process.cpu_percent()`_
+  calculation on macOS x86_64 (arm64 is fine) was highly inaccurate (41.67x
+  lower).
+- 2732_, [Linux]: net_if_duplex_speed: handle EBUSY from ioctl(SIOCETHTOOL).
+
+**Compatibility notes**
+
+Changes that break backwards compatibility:
+
+- `Process.memory_info()`_:
+
+  - The returned named tuple changed size and field order.
+    Positional access (e.g. ``p.memory_info()[3]`` or ``a, b, c =
+    p.memory_info()``) may break or silently return the wrong field. Always use
+    attribute access instead (e.g. ``p.memory_info().rss``).
+
 7.2.3
 =====
 
@@ -2936,6 +2995,7 @@ In most cases accessing the old names will work but it will cause a
 .. _`Process.ionice()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.ionice
 .. _`Process.is_running()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.is_running
 .. _`Process.kill()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.kill
+.. _`Process.memory_footprint()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_footprint
 .. _`Process.memory_full_info()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
 .. _`Process.memory_info()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_info
 .. _`Process.memory_info_ex()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_info_ex
@@ -2950,6 +3010,7 @@ In most cases accessing the old names will work but it will cause a
 .. _`Process.num_threads()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.num_threads
 .. _`Process.oneshot()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.oneshot
 .. _`Process.open_files()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.open_files
+.. _`Process.page_faults()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.page_faults
 .. _`Process.parent()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.parent
 .. _`Process.parents()`: https://psutil.readthedocs.io/en/latest/#psutil.Process.parents
 .. _`Process.pid`: https://psutil.readthedocs.io/en/latest/#psutil.Process.pid

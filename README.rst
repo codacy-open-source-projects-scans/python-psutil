@@ -335,9 +335,11 @@ Process management
     1
     >>>
     >>> p.memory_info()
-    pmem(rss=10915840, vms=67608576, shared=3313664, text=2310144, lib=0, data=7262208, dirty=0)
-    >>> p.memory_full_info()  # "real" USS memory usage (Linux, macOS, Win only)
-    pfullmem(rss=10199040, vms=52133888, shared=3887104, text=2867200, lib=0, data=5967872, dirty=0, uss=6545408, pss=6872064, swap=0)
+    pmem(rss=3164160, vms=4410163, shared=897433, text=302694, data=2422374)
+    >>> p.memory_info_ex()
+    pmem_ex(rss=3164160, vms=4410163, shared=897433, text=302694, data=2422374, peak_rss=4172190, peak_vms=6399001, rss_anon=2266726, rss_file=897433, rss_shmem=0, swap=0, hugetlb=0)
+    >>> p.memory_footprint()  # "real" USS memory usage
+    pfootprint(uss=2355200, pss=2483712, swap=0)
     >>> p.memory_percent()
     0.7823
     >>> p.memory_maps()
@@ -346,6 +348,9 @@ Process management
      pmmap_grouped(path='[heap]',  rss=32768, size=139264, pss=32768, shared_clean=0, shared_dirty=0, private_clean=0, private_dirty=32768, referenced=32768, anonymous=32768, swap=0),
      pmmap_grouped(path='[stack]', rss=2465792, size=2494464, pss=2465792, shared_clean=0, shared_dirty=0, private_clean=0, private_dirty=2465792, referenced=2277376, anonymous=2465792, swap=0),
      ...]
+    >>>
+    >>> p.page_faults()
+    ppagefaults(minor=5905, major=3)
     >>>
     >>> p.io_counters()
     pio(read_count=478001, write_count=59371, read_bytes=700416, write_bytes=69632, read_chars=456232, write_chars=517543)
