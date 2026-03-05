@@ -339,67 +339,113 @@ Memory
   Return statistics about system memory usage as a named tuple including the
   following fields, expressed in bytes.
 
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | Linux     | macOS     | BSD       | Windows   | Solaris   | AIX       |
-  +===========+===========+===========+===========+===========+===========+
-  | total     | total     | total     | total     | total     | total     |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | available | available | available | available | available | available |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | percent   | percent   | percent   | percent   | percent   | percent   |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | used      | used      | used      | used      | used      | used      |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | free      | free      | free      | free      | free      | free      |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | active    | active    | active    |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | inactive  | inactive  | inactive  |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | buffers   |           | buffers   |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | cached    |           | cached    |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | shared    |           | shared    |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  | slab      |           |           |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-  |           | wired     | wired     |           |           |           |
-  +-----------+-----------+-----------+-----------+-----------+-----------+
-
   - **total**: total physical memory (exclusive swap).
-  - **available**: the memory that can be given instantly to processes without
-    the system going into swap.
-    This is calculated by summing different memory metrics that vary depending
-    on the platform. It is supposed to be used to monitor actual memory usage
-    in a cross platform fashion.
-  - **percent**: the percentage usage calculated as ``(total - available) / total * 100``.
-  - **used**: memory used, calculated differently depending on the platform and
-    designed for informational purposes only. **total - free** does not
-    necessarily match **used**.
-  - **free**: memory not being used at all (zeroed) that is readily available;
-    note that this doesn't reflect the actual memory available (use
-    **available** instead). **total - used** does not necessarily match
-    **free**.
-  - **active** *(Linux, macOS, BSD)*: memory currently in use or very recently
-    used, and so it is in RAM.
-  - **inactive** *(Linux, macOS, BSD)*: memory that is marked as not used.
-  - **buffers** *(Linux, BSD)*: cache for things like file system metadata.
-  - **cached** *(Linux, BSD)*: cache for various things.
-  - **shared** *(Linux, BSD)*: memory that may be simultaneously accessed by
-    multiple processes.
-  - **slab** *(Linux)*: in-kernel data structures cache.
-  - **wired** *(macOS, BSD)*: memory that is marked to always stay in RAM. It is
-    never moved to disk.
+  - **available**: memory that can be given instantly to processes without the
+    system going into swap. It is calculated by summing different memory values
+    depending on the platform (on Linux it matches the ``MemAvailable`` kernel
+    field). This is the recommended field for monitoring actual memory usage
+    in a cross-platform fashion.
+  - **percent**: the percentage usage calculated as
+    ``(total - available) / total * 100``.
+  - **used**: memory in use, calculated differently depending on the platform
+    (see the table below). It is meant for informational purposes. Neither
+    ``total - free`` nor ``total - available`` necessarily equals ``used``.
+  - **free**: memory that is not in use at all (zeroed pages). This is
+    typically much lower than **available** because the OS keeps recently
+    freed memory as reclaimable cache (see **cached** and **buffers**)
+    rather than zeroing it immediately. Do not use this to check for
+    memory pressure; use **available** instead.
+  - **active** *(Linux, macOS, BSD)*: memory currently mapped by processes
+    or recently accessed, held in RAM. It is unlikely to be reclaimed unless
+    the system is under significant memory pressure.
+  - **inactive** *(Linux, macOS, BSD)*: memory not recently accessed. It
+    still holds valid data (file cache, old allocations) but is a candidate
+    for reclamation or swapping. On BSD systems it is counted in
+    **available**.
+  - **buffers** *(Linux, BSD)*: kernel buffer cache for raw block-device I/O
+    (e.g. disk blocks read before the filesystem processes them). Can be
+    reclaimed by the OS when needed.
+  - **cached** *(Linux, BSD)*: in-memory page cache for files read from disk.
+    The OS reclaims this memory automatically when processes need it, so a
+    large **cached** value is healthy and does not indicate memory pressure.
+    On Linux this includes ``SReclaimable`` (reclaimable slab memory).
+  - **shared** *(Linux, BSD)*: memory accessible by multiple processes
+    simultaneously, such as POSIX shared memory (``shm_open``) and
+    ``tmpfs``-backed files. On Linux this corresponds to ``Shmem`` in
+    ``/proc/meminfo`` and is already counted within **active** / **inactive**.
+  - **slab** *(Linux)*: memory used by the kernel's internal object caches
+    (e.g. inode and dentry caches). The reclaimable portion
+    (``SReclaimable``) is already included in **cached**.
+  - **wired** *(macOS, BSD)*: memory pinned in RAM by the kernel (e.g. kernel
+    code and critical data structures). It can never be moved to disk.
 
-  The sum of **used** and **available** does not necessarily equal **total**.
-  On Windows **available** and **free** are the same.
-  See `meminfo.py`_ script providing an example on how to convert bytes in a
-  human readable form.
+  Follows a table showing implementation details. All info on Linux are retrieved from `/proc/meminfo`.
 
-  .. note:: if you just want to know how much physical memory is left in a
-    cross platform fashion simply rely on **available** and **percent**
-    fields.
+  .. list-table::
+     :header-rows: 1
+
+     * - Field
+       - Linux
+       - macOS
+       - Windows
+       - FreeBSD
+     * - total
+       - ``MemTotal``
+       - ``sysctl() hw.memsize``
+       - ``GetPerformanceInfo() PhysicalTotal``
+       - ``sysctl() hw.physmem``
+     * - available
+       - ``MemAvailable``
+       - ``host_statistics64() inactive + free``
+       - ``GetPerformanceInfo() PhysicalAvailable``
+       - ``inactive + cached + free``
+     * - used
+       - ``total - available``
+       - ``host_statistics64() active + wired``
+       - ``total - available``
+       - ``active + wired + cached``
+     * - free
+       - ``MemFree``
+       - ``host_statistics64() free - speculative``
+       - same as ``available``
+       - ``sysctl() vm.stats.vm.v_free_count``
+     * - active
+       - ``Active``
+       - ``host_statistics64() active``
+       -
+       - ``sysctl() vm.stats.vm.v_active_count``
+     * - inactive
+       - ``Inactive``
+       - ``host_statistics64() inactive``
+       -
+       - ``sysctl() vm.stats.vm.v_inactive_count``
+     * - buffers
+       - ``Buffers``
+       -
+       -
+       - ``sysctl() vfs.bufspace``
+     * - cached
+       - ``Cached + SReclaimable``
+       -
+       -
+       - ``sysctl() vm.stats.vm.v_cache_count``
+     * - shared
+       - ``Shmem``
+       -
+       -
+       - ``sysctl(CTL_VM/VM_METER) t_vmshr + t_rmshr``
+     * - slab
+       - ``Slab``
+       -
+       -
+       -
+     * - wired
+       -
+       - ``host_statistics64() wired``
+       -
+       - ``sysctl() vm.stats.vm.v_wire_count``
+
+  Example on Linux:
 
   >>> import psutil
   >>> mem = psutil.virtual_memory()
@@ -411,6 +457,13 @@ Memory
   ...     print("warning")
   ...
   >>>
+
+  .. note:: if you just want to know how much physical memory is left in a
+    cross platform fashion simply rely on **available** and **percent**
+    fields.
+
+  .. note::  see `meminfo.py`_ script providing an example on how to convert
+    bytes in a human readable form.
 
   .. versionchanged:: 4.2.0 added *shared* metric on Linux.
 
@@ -1698,10 +1751,9 @@ Process class
 
     - **vms**: aka "Virtual Memory Size", this is the total amount of virtual
       memory used by the process. On UNIX it matches ``top`` VIRT column. On
-      Windows it maps to ``PrivateUsage``, which is not exactly the virtual
-      address space size (VMS) as intended on UNIX. For that, use ``virtual``
-      from
-      :meth:`memory_info_ex`.
+      Windows it maps to ``PrivateUsage``, which is close to, but not exactly
+      the same as the VMS definition used on UNIX. For that, use ``virtual``
+      from :meth:`memory_info_ex`.
 
     - **shared**: *(Linux)*
       memory that could be potentially shared with other processes.
