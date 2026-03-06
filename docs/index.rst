@@ -379,6 +379,14 @@ Memory
   - **wired** *(macOS, BSD)*: memory pinned in RAM by the kernel (e.g. kernel
     code and critical data structures). It can never be moved to disk.
 
+  .. note::
+     - On Linux, **total**, **free**, **used**,  **shared**, and **available**
+       match the output of the ``free`` command.
+     - On macOS, **free**, **active**, **inactive**, and **wired** match
+       ``vm_stat`` output.
+     - On Windows, **total**, **used** ("In use"), and **available** match
+       the Task Manager (Performance > Memory tab).
+
   Follows a table showing implementation details. All info on Linux are retrieved from `/proc/meminfo`.
 
   .. list-table::
@@ -474,16 +482,22 @@ Memory
   Return system swap memory statistics as a named tuple including the following
   fields:
 
-  * **total**: total swap memory in bytes
-  * **used**: used swap memory in bytes
-  * **free**: free swap memory in bytes
-  * **percent**: the percentage usage calculated as ``(total - available) / total * 100``
-  * **sin**: the number of bytes the system has swapped in from disk
-    (cumulative)
-  * **sout**: the number of bytes the system has swapped out from disk
-    (cumulative)
+  * **total**: total swap space. On Windows this is derived as
+    ``CommitLimit - PhysicalTotal``, representing virtual memory backed by
+    the page file rather than the raw page-file size.
+  * **used**: swap space currently in use.
+  * **free**: swap space not in use (``total - used``).
+  * **percent**: swap usage as a percentage, calculated as
+    ``used / total * 100``.
+  * **sin**: number of bytes the system has paged *in* from disk (pages moved
+    from swap space back into RAM) since boot (cumulative).
+  * **sout**: number of bytes the system has paged *out* to disk (pages moved
+    from RAM into swap space) since boot (cumulative). A continuously
+    increasing **sout** is a sign of memory pressure.
 
-  **sin** and **sout** on Windows are always set to ``0``.
+  **sin** and **sout** are cumulative counters since boot; monitor their rate
+  of change rather than the absolute value to detect active swapping.
+  On Windows both are always ``0``.
   See `meminfo.py`_ script providing an example on how to convert bytes in a
   human readable form.
 
@@ -1724,55 +1738,64 @@ Process class
     The "portable" fields available on all platforms are `rss` and `vms`.
     All numbers are expressed in bytes.
 
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    | Linux   | macOS   | BSD      | Solaris | AIX | Windows                                                     |
-    +=========+=========+==========+=========+=====+=============================================================+
-    | rss     | rss     | rss      | rss     | rss | rss (maps to ``WorkingSetSize``)                            |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    | vms     | vms     | vms      | vms     | vms | vms (maps to ``PrivateUsage``)                              |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    | shared  |         | text     |         |     | num_page_faults (maps to ``PageFaultCount``)                |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    | text    |         | data     |         |     | paged_pool (maps to ``QuotaPagedPoolUsage``)                |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    | data    |         | stack    |         |     | nonpaged_pool (maps to ``QuotaNonPagedPoolUsage``)          |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    |         |         | peak_rss |         |     | peak_rss (maps to ``PeakWorkingSetSize``)                   |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    |         |         |          |         |     | peak_vms (maps to ``PeakPagefileUsage``)                    |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    |         |         |          |         |     | peak_paged_pool (maps to ``QuotaPeakPagedPoolUsage``)       |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
-    |         |         |          |         |     | peak_nonpaged_pool (maps to ``QuotaPeakNonPagedPoolUsage``) |
-    +---------+---------+----------+---------+-----+-------------------------------------------------------------+
+    +---------+---------+----------+---------+-----+-----------------+
+    | Linux   | macOS   | BSD      | Solaris | AIX | Windows         |
+    +=========+=========+==========+=========+=====+=================+
+    | rss     | rss     | rss      | rss     | rss | rss             |
+    +---------+---------+----------+---------+-----+-----------------+
+    | vms     | vms     | vms      | vms     | vms | vms             |
+    +---------+---------+----------+---------+-----+-----------------+
+    | shared  |         | text     |         |     |                 |
+    +---------+---------+----------+---------+-----+-----------------+
+    | text    |         | data     |         |     |                 |
+    +---------+---------+----------+---------+-----+-----------------+
+    | data    |         | stack    |         |     |                 |
+    +---------+---------+----------+---------+-----+-----------------+
+    |         |         | peak_rss |         |     | peak_rss        |
+    +---------+---------+----------+---------+-----+-----------------+
+    |         |         |          |         |     | peak_vms        |
+    +---------+---------+----------+---------+-----+-----------------+
 
-    - **rss**: aka "Resident Set Size", this is the non-swapped physical memory
-      a process is using. On UNIX it matches ``top`` RES column.
+    - **rss**: aka "Resident Set Size". The portion of physical memory
+      currently held by this process (code, data, stack, and mapped files that
+      are resident). Pages swapped out to disk are **not** counted. On UNIX it
+      matches the ``top`` RES column. On Windows it maps to ``WorkingSetSize``.
 
-    - **vms**: aka "Virtual Memory Size", this is the total amount of virtual
-      memory used by the process. On UNIX it matches ``top`` VIRT column. On
-      Windows it maps to ``PrivateUsage``, which is close to, but not exactly
-      the same as the VMS definition used on UNIX. For that, use ``virtual``
-      from :meth:`memory_info_ex`.
+    - **vms**: aka "Virtual Memory Size". The total address space reserved by
+      the process, including pages not yet touched, pages in swap, and
+      memory-mapped files not yet accessed. Typically much larger than
+      **rss**. On UNIX it matches the ``top`` VIRT column. On Windows this
+      maps to ``PrivateUsage`` (private committed pages only), which differs
+      from the UNIX definition; use ``virtual`` from :meth:`memory_info_ex`
+      for the true virtual address space size.
 
-    - **shared**: *(Linux)*
-      memory that could be potentially shared with other processes.
-      This matches "top"'s SHR column).
+    - **shared** *(Linux)*: memory backed by a file or device (shared
+      libraries, mmap'd files, POSIX shared memory) that *could* be shared
+      with other processes. A page is counted here even if no other process
+      is currently mapping it. Matches ``top``'s SHR column.
 
-    - **text** *(Linux, BSD)*:
-      aka TRS (text resident set) the amount of memory devoted to
-      executable code. This matches "top"'s CODE column).
+    - **text** *(Linux, BSD)*: aka TRS (Text Resident Set). Resident memory
+      devoted to executable code. These pages are read-only and typically
+      shared across all processes running the same binary. Matches ``top``'s
+      CODE column.
 
-    - **data** *(Linux, BSD)*:
-      aka DRS (Data Resident Set) the amount of physical memory devoted to
-      other than executable code. It matches "top"'s DATA column.
+    - **data** *(Linux, BSD)*: aka DRS (Data Resident Set). On Linux this
+      covers the data **and** stack segments combined (from
+      ``/proc/<pid>/statm``). On BSD it covers the data segment only (see
+      **stack**). Matches ``top``'s DATA column.
 
-    - **peak_rss** *(BSD)*: aka "peak Resident Set Size" or "high water mark".
-      It's the highest amount of physical memory the process has ever used at
-      any point during its lifetime. Can be 0 for kernel PIDs.
+    - **stack** *(BSD)*: size of the process stack segment. Reported
+      separately from **data** (unlike Linux where both are combined).
 
-    For on explanation of Windows fields rely on `PROCESS_MEMORY_COUNTERS_EX`_
-    doc.
+    - **peak_rss** *(BSD, Windows)*: the highest RSS value (high water mark)
+      the process has ever reached. On BSD this may be ``0`` for kernel PIDs.
+      On Windows it maps to ``PeakWorkingSetSize``.
+
+    - **peak_vms** *(Windows)*: peak private committed (page-file-backed)
+      virtual memory. Maps to ``PeakPagefileUsage``.
+
+    For the full definitions of Windows fields see
+    `PROCESS_MEMORY_COUNTERS_EX`_.
 
     Example on Linux:
 
@@ -1794,9 +1817,12 @@ Process class
       aliases**. Use :meth:`page_faults` instead.
 
     .. versionchanged::
-      8.0.0 Windows: renamed fields (old names kept as deprecated aliases):
-      *wset* → *rss*, *peak_wset* → *peak_rss*, *pagefile* / *private* →
-      *vms*, *peak_pagefile* → *peak_vms*.
+      8.0.0 Windows: eliminated old aliases: *wset* → *rss*, *peak_wset* →
+      *peak_rss*, *pagefile* / *private* → *vms*, *peak_pagefile* → *peak_vms*,
+      *num_page_faults* → :meth:`page_faults` method. At the same time
+      *paged_pool*, *nonpaged_pool*, *peak_paged_pool*, *peak_nonpaged_pool*
+      were moved to :meth:`memory_info_ex`. All these old names still work but
+      raise `DeprecationWarning`.
 
     .. versionchanged::
       8.0.0 BSD: added *peak_rss*.
@@ -1814,78 +1840,88 @@ Process class
     implemented this returns the same result as :meth:`memory_info`. All
     numbers are expressed in bytes.
 
-    +-------------+----------------+--------------+
-    | Linux       | macOS          | Windows      |
-    +=============+================+==============+
-    | peak_rss    | peak_rss       | virtual      |
-    +-------------+----------------+--------------+
-    | peak_vms    |                | peak_virtual |
-    +-------------+----------------+--------------+
-    | rss_anon    | rss_anon       |              |
-    +-------------+----------------+--------------+
-    | rss_file    | rss_file       |              |
-    +-------------+----------------+--------------+
-    | rss_shmem   | wired          |              |
-    +-------------+----------------+--------------+
-    | swap        | compressed     |              |
-    +-------------+----------------+--------------+
-    | hugetlb     | phys_footprint |              |
-    +-------------+----------------+--------------+
+    +-------------+----------------+--------------------+
+    | Linux       | macOS          | Windows            |
+    +=============+================+====================+
+    | peak_rss    | peak_rss       | virtual            |
+    +-------------+----------------+--------------------+
+    | peak_vms    |                | peak_virtual       |
+    +-------------+----------------+--------------------+
+    | rss_anon    | rss_anon       | paged_pool         |
+    +-------------+----------------+--------------------+
+    | rss_file    | rss_file       | nonpaged_pool      |
+    +-------------+----------------+--------------------+
+    | rss_shmem   | wired          | peak_paged_pool    |
+    +-------------+----------------+--------------------+
+    | swap        | compressed     | peak_nonpaged_pool |
+    +-------------+----------------+--------------------+
+    | hugetlb     | phys_footprint |                    |
+    +-------------+----------------+--------------------+
 
-    - **peak_rss**: aka "peak Resident Set Size" or "high water mark". It's the
-      highest amount of physical memory the process has ever used at any point
-      during its lifetime.
-    - **peak_vms** *(Linux)*: aka "peak Virtual Memory Size". It's highest
-      amount of virtual memory the process has ever used at any point during
-      its lifetime.
-    - **rss_anon** *(Linux, macOS)*: anonymous resident memory (heap, stack,
-      etc.). On macOS this maps to ``task_vm_info.internal``.
-    - **rss_file** *(Linux, macOS)*: file-backed resident memory. On macOS this
-      maps to ``task_vm_info.external``.
-    - **rss_shmem** *(Linux)*: shared memory resident pages.
-    - **wired** *(macOS)*: memory that is marked to always stay in RAM. It is
-      never moved to disk.
-    - **swap** *(Linux)*: memory swapped out to disk. Equivalent to
-      ``memory_footprint().swap`` but faster, as it reads from
-      */proc/pid/status* instead of */proc/pid/smaps*.
-    - **hugetlb** *(Linux)*: memory backed by huge TLB pages.
-    - **phys_footprint** *(macOS)*: total physical memory footprint including
-      compressed pages; this is what Xcode's memory gauge shows.
-    - **virtual** *(Windows)*: total virtual address space size. Unlike ``vms``
-      in :meth:`memory_info`, this is the true virtual memory size
-      (``VirtualSize`` from ``SYSTEM_PROCESS_INFORMATION``).
-    - **peak_virtual** *(Windows)*: peak virtual address space size
-      (``VirtualPeakSize`` from ``SYSTEM_PROCESS_INFORMATION``).
+    - **peak_rss** *(Linux, macOS)*: the highest RSS value (high water mark)
+      the process has reached since it started.
+    - **peak_vms** *(Linux)*: the highest VMS value the process has reached
+      since it started.
+    - **rss_anon** *(Linux, macOS)*: resident anonymous pages (heap, stack,
+      private mappings) not backed by any file, such as heap allocations,
+      stack, and private ``mmap(MAP_ANONYMOUS)`` regions.
+    - **rss_file** *(Linux, macOS)*: resident file-backed memory; pages mapped
+      from files (shared libraries, mmap'd files).
+    - **rss_shmem** *(Linux)*: resident shared memory pages (``tmpfs``,
+      ``shm_open``). ``rss_anon + rss_file + rss_shmem`` equals **rss**.
+    - **wired** *(macOS)*: memory pinned in RAM by the kernel on behalf of this
+      process; cannot be compressed or paged out.
+    - **swap** *(Linux)*: process memory currently in swap. Equivalent to
+      ``memory_footprint().swap`` but cheaper, as it reads from
+      ``/proc/<pid>/status`` instead of ``/proc/<pid>/smaps``.
+    - **compressed** *(macOS)*: pages held in the in-RAM memory compressor; not
+      counted in **rss**. A large value signals memory pressure but has not yet
+      triggered swapping.
+    - **hugetlb** *(Linux)*: resident memory backed by huge pages.
+    - **phys_footprint** *(macOS)*: total physical memory impact including
+      compressed pages. What Xcode and ``footprint(1)`` report; prefer this
+      over **rss** macOS memory monitoring.
+    - **virtual** *(Windows)*: true virtual address space size, including
+      reserved-but-uncommitted regions (unlike **vms** in
+      :meth:`memory_info`).
+    - **peak_virtual** *(Windows)*: peak virtual address space size.
+    - **paged_pool** *(Windows)*: kernel memory used for objects created by
+      this process (open file handles, registry keys, etc.) that the OS may
+      swap to disk under memory pressure.
+    - **nonpaged_pool** *(Windows)*: kernel memory used for objects that must
+      stay in RAM at all times (I/O request packets, device driver buffers,
+      etc.). A large or growing value may indicate a driver memory leak.
+    - **peak_paged_pool** *(Windows)*: peak paged-pool usage.
+    - **peak_nonpaged_pool** *(Windows)*: peak non-paged-pool usage.
+
+    For the full definitions of Windows fields see
+    `PROCESS_MEMORY_COUNTERS_EX`_.
 
     .. versionadded:: 8.0.0
 
   .. method:: memory_footprint()
 
-    Return a named tuple with USS, PSS and swap memory metrics.
-    These provide a better representation of actual process memory
-    consumption as explained in detail in this
+    Return a named tuple with USS, PSS and swap memory metrics. These give
+    a more accurate picture of actual memory consumption than
+    :meth:`memory_info`, as explained in this
     `blog post <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__.
-    It does so by passing through the whole process address.
-    As such it usually requires higher user privileges than
-    :meth:`memory_info` or :meth:`memory_info_ex` and is considerably slower.
+    It works by walking the full process address space, so it is
+    considerably slower than :meth:`memory_info` and may require elevated
+    privileges.
 
-    - **uss** *(Linux, macOS, Windows)*:
-      aka "Unique Set Size", this is the memory which is unique to a process
-      and which would be freed if the process was terminated right now.
+    - **uss** *(Linux, macOS, Windows)*: aka "Unique Set Size". This is the
+      memory which is unique to a process and which would be freed if the
+      process were terminated right now. The most representative metric for
+      actual memory usage.
 
     - **pss** *(Linux)*: aka "Proportional Set Size", is the amount of memory
       shared with other processes, accounted in a way that the amount is
-      divided evenly between the processes that share it.
-      I.e. if a process has 10 MBs all to itself and 10 MBs shared with
-      another process its PSS will be 15 MBs.
+      divided evenly between the processes that share it. I.e. if a process has
+      10 MBs all to itself, and 10 MBs shared with another process, its PSS
+      will be 15 MBs.
 
-    - **swap** *(Linux)*: amount of memory that has been swapped out to disk.
-
-    .. note::
-      `uss` is probably the most representative metric for determining how
-      much memory is actually being used by a process.
-      It represents the amount of memory that would be freed if the process
-      was terminated right now.
+    - **swap** *(Linux)*: process memory currently in swap, counted per-mapping
+      (slower, but may be more accurate than ``memory_info_ex().swap``).
 
     Example on Linux:
 
@@ -1912,28 +1948,22 @@ Process class
 
   .. method:: memory_percent(memtype="rss")
 
-    Compare process memory to total physical system memory and calculate
-    process memory utilization as a percentage.
-    *memtype* argument is a string that dictates what type of process memory
-    you want to compare against. You can choose between the named tuple field
-    names returned by :meth:`memory_info`, :meth:`memory_info_ex` and
-    :meth:`memory_footprint` (defaults to ``"rss"``).
+    Return process memory usage as a percentage of total physical memory
+    (``process.memory_info().rss / virtual_memory().total * 100``).
+    *memtype* can be any field name from :meth:`memory_info`,
+    :meth:`memory_info_ex`, or :meth:`memory_footprint` and controls which
+    memory value is used in the calculation (defaults to ``"rss"``).
 
     .. versionchanged:: 4.0.0 added `memtype` parameter.
 
   .. method:: memory_maps(grouped=True)
 
     Return process's mapped memory regions as a list of named tuples whose
-    fields are variable depending on the platform.
-    This method is useful to obtain a detailed representation of process
-    memory usage as explained
-    `here <https://web.archive.org/web/20180907232758/http://bmaurer.blogspot.com/2006/03/memory-usage-with-smaps.html>`__
-    (the most important value is "private" memory).
-    If *grouped* is ``True`` the mapped regions with the same *path* are
-    grouped together and the different memory fields are summed.  If *grouped*
-    is ``False`` each mapped region is shown as a single entity and the
-    named tuple will also include the mapped region's address space (*addr*)
-    and permission set (*perms*).
+    fields vary by platform (all values in bytes). If *grouped* is ``True``
+    regions with the same *path* are merged and their numeric fields summed.
+    If *grouped* is ``False`` each region is listed individually and the
+    tuple also includes *addr* (address range) and *perms* (permission
+    string e.g. ``"r-xp"``).
     See `pmap.py`_ for an example application.
 
     +---------------+---------+--------------+-----------+
@@ -1959,6 +1989,31 @@ Process class
     +---------------+---------+--------------+-----------+
     | swap          |         |              |           |
     +---------------+---------+--------------+-----------+
+
+    Linux fields (from ``/proc/<pid>/smaps``):
+
+    - **rss**: resident pages in this mapping.
+    - **size**: total virtual size; may far exceed **rss** for sparse or
+      reserved-but-unaccessed mappings.
+    - **pss**: proportional RSS. **rss** divided by the number of processes
+      sharing this mapping. Useful for fair per-process accounting.
+    - **shared_clean**: shared pages not modified (e.g. shared library code);
+      can be dropped from RAM without writing to swap.
+    - **shared_dirty**: shared pages that have been written to.
+    - **private_clean**: private unmodified pages; can be dropped without
+      writing to swap.
+    - **private_dirty**: private modified pages; must be written to swap
+      before they can be reclaimed. The key indicator of a mapping's real
+      memory cost.
+    - **referenced**: pages recently accessed.
+    - **anonymous**: pages not backed by a file (heap, stack allocations).
+    - **swap**: pages from this mapping currently in swap.
+
+    FreeBSD fields:
+
+    - **private**: pages in this mapping private to this process.
+    - **ref_count**: reference count on the VM object backing this mapping.
+    - **shadow_count**: depth of the copy-on-write shadow object chain.
 
       >>> import psutil
       >>> p = psutil.Process()
@@ -2004,7 +2059,7 @@ Process class
   .. method:: page_faults()
 
     Return the number of page faults for this process as a ``(minor, major)``
-    namedtuple.
+    named tuple.
 
     - **minor** (a.k.a. *soft* faults): occur when a memory page is not
       currently mapped into the process address space, but is already present
@@ -2335,14 +2390,14 @@ steadily across iterations, the C code is likely retaining memory it should be
 releasing. This provides an allocator-level way to spot native leaks that
 Python's memory tracking misses.
 
-Checkout `psleak`_ project to see a practical example of how these APIs can be
+Check out `psleak`_ project to see a practical example of how these APIs can be
 used to detect memory leaks in C extensions.
 
 .. function:: heap_info()
 
   Return low-level heap statistics from the system's C allocator. On Linux,
   this exposes ``uordblks`` and ``hblkhd`` fields from glibc's `mallinfo2`_.
-  Returns a namedtuple containing:
+  Returns a named tuple containing:
 
   - ``heap_used``: total number of bytes currently allocated via ``malloc()``
     (small allocations).

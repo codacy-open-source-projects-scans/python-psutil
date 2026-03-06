@@ -12,7 +12,6 @@ from ._common import LINUX
 from ._common import MACOS
 from ._common import SUNOS
 from ._common import WINDOWS
-from ._common import deprecated_property
 
 # ===================================================================
 # --- system functions
@@ -277,52 +276,46 @@ elif WINDOWS:
     svmem = nt("svmem", ("total", "available", "percent", "used", "free"))
 
     # psutil.Process.memory_info()
-    _pmem = nt(
-        "pmem",
-        (
-            "rss",
-            "vms",
-            "num_page_faults",
+    class pmem(  # noqa: SLOT002
+        nt("pmem", ("rss", "vms", "peak_rss", "peak_vms"))
+    ):
+        def __new__(cls, rss, vms, peak_rss, peak_vms, _deprecated=None):
+            inst = super().__new__(cls, rss, vms, peak_rss, peak_vms)
+            inst.__dict__['_deprecated'] = _deprecated or {}
+            return inst
+
+        def __getattr__(self, name):
+            depr = self.__dict__["_deprecated"]
+            if name in depr:
+                msg = f"pmem.{name} is deprecated"
+                if name in {
+                    "paged_pool",
+                    "nonpaged_pool",
+                    "peak_paged_pool",
+                    "peak_nonpaged_pool",
+                }:
+                    msg += "; use memory_info_ex() instead"
+                elif name == "num_page_faults":
+                    msg += "; use page_faults() instead"
+                warnings.warn(msg, DeprecationWarning, stacklevel=2)
+                return depr[name]
+
+            msg = f"{self.__class__.__name__} object has no attribute {name!r}"
+            raise AttributeError(msg)
+
+    # psutil.Process.memory_info_ex()
+    pmem_ex = nt(
+        "pmem_ex",
+        pmem._fields
+        + (
+            "virtual",
+            "peak_virtual",
             "paged_pool",
             "nonpaged_pool",
-            "peak_rss",
-            "peak_vms",
             "peak_paged_pool",
             "peak_nonpaged_pool",
         ),
     )
-
-    class pmem(_pmem):
-        __slots__ = ()
-
-        wset = deprecated_property(replacement="rss")
-        peak_wset = deprecated_property(replacement="peak_rss")
-        pagefile = deprecated_property(replacement="vms")
-        peak_pagefile = deprecated_property(replacement="peak_vms")
-        private = deprecated_property(replacement="vms")
-
-    # psutil.Process.memory_info_ex()
-    _pmem_ex = nt(
-        "pmem_ex",
-        pmem._fields + ("virtual", "peak_virtual"),
-    )
-
-    class pmem_ex(pmem, _pmem_ex):
-        __slots__ = ()
-        _fields = _pmem_ex._fields
-        __repr__ = _pmem_ex.__repr__
-
-        def __new__(cls, *args, **kwargs):
-            return _pmem_ex.__new__(cls, *args, **kwargs)
-
-        @classmethod
-        def _make(cls, iterable):
-            result = tuple.__new__(cls, iterable)
-            n = len(cls._fields)
-            if len(result) != n:
-                msg = f"Expected {n} arguments, got {len(result)}"
-                raise TypeError(msg)
-            return result
 
     # psutil.Process.memory_footprint()
     pfootprint = nt("pfootprint", ("uss",))

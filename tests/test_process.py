@@ -507,15 +507,14 @@ class TestProcess(PsutilTestCase):
             )
         elif WINDOWS:
             assert mem._fields[2:] == (
-                "num_page_faults",
-                "paged_pool",
-                "nonpaged_pool",
                 "peak_rss",
                 "peak_vms",
-                "peak_paged_pool",
-                "peak_nonpaged_pool",
                 "virtual",
                 "peak_virtual",
+                "paged_pool",
+                "nonpaged_pool",
+                "peak_paged_pool",
+                "peak_nonpaged_pool",
             )
         else:
             assert mem._fields == psutil.Process().memory_info_ex()._fields

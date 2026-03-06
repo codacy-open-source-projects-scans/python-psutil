@@ -35,9 +35,11 @@
     - macOS: *pfaults* and *pageins* removed with **no
       backward-compataliases**. Use `Process.page_faults()`_ instead.
 
-    - Windows: renamed fields (old names kept as deprecated aliases): *wset* →
-      *rss*, *peak_wset* → *peak_rss*, *pagefile* / *private* → *vms*,
-      *peak_pagefile* → *peak_vms*.
+    - Windows: eliminated old aliases: *wset* → *rss*, *peak_wset* →
+      *peak_rss*, *pagefile* / *private* → *vms*, *peak_pagefile* → *peak_vms*.
+      At the same time *paged_pool*, *nonpaged_pool*, *peak_paged_pool*,
+      *peak_nonpaged_pool* were moved to `Process.memory_info_ex()`_. All these
+      old names still work but raise `DeprecationWarning`.
 
   - `Process.memory_full_info()`_ is **deprecated**. Use the new
     `Process.memory_footprint()`_ instead.
@@ -51,6 +53,9 @@
   lower).
 - 2732_, [Linux]: net_if_duplex_speed: handle EBUSY from ioctl(SIOCETHTOOL).
 - 2744_, [NetBSD]: fix possible double `free()` in `swap_memory()`_.
+- 2746_, [FreeBSD]: `Process.memory_maps()`_, `rss` and `private` fields, are
+  erroneously reported in memory pages instead of bytes. Other platforms
+  (Linux, macOS, Windows) return bytes.
 
 **Compatibility notes**
 
