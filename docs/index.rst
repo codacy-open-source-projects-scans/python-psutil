@@ -107,7 +107,8 @@ CPU
 
   Return system CPU times as a named tuple.
   Every attribute represents the seconds the CPU has spent in the given mode.
-  The attributes availability varies depending on the platform:
+  The attributes availability varies depending on the platform.
+  Cross-platform fields:
 
   - **user**: time spent by normal processes executing in user mode; on Linux
     this also includes **guest** time
@@ -116,17 +117,17 @@ CPU
 
   Platform-specific fields:
 
-  - **nice** *(UNIX)*: time spent by niced (prioritized) processes executing in
-    user mode; on Linux this also includes **guest_nice** time
-  - **iowait** *(Linux)*: time spent waiting for I/O to complete. This is *not*
-    accounted in **idle** time counter.
+  - **nice** *(Linux, macOS, BSD)*: time spent by niced (prioritized) processes
+    executing in user mode; on Linux this also includes **guest_nice** time
+  - **iowait** *(Linux, SunOS, AIX)*: time spent waiting for I/O to complete.
+    This is *not* accounted in **idle** time counter.
   - **irq** *(Linux, BSD)*: time spent for servicing hardware interrupts
   - **softirq** *(Linux)*: time spent for servicing software interrupts
-  - **steal** *(Linux 2.6.11+)*: time spent by other operating systems running
+  - **steal** *(Linux)*: time spent by other operating systems running
     in a virtualized environment
-  - **guest** *(Linux 2.6.24+)*: time spent running a virtual CPU for guest
+  - **guest** *(Linux)*: time spent running a virtual CPU for guest
     operating systems under the control of the Linux kernel
-  - **guest_nice** *(Linux 3.2.0+)*: time spent running a niced guest
+  - **guest_nice** *(Linux)*: time spent running a niced guest
     (virtual CPU for guest operating systems under the control of the Linux
     kernel)
   - **interrupt** *(Windows)*: time spent for servicing hardware interrupts (
@@ -143,15 +144,24 @@ CPU
 
     >>> import psutil
     >>> psutil.cpu_times()
-    scputimes(user=17411.7, nice=77.99, system=3797.02, idle=51266.57, iowait=732.58, irq=0.01, softirq=142.43, steal=0.0, guest=0.0, guest_nice=0.0)
+    scputimes(user=17411.7, system=3797.02, idle=51266.57, nice=77.99, iowait=732.58, irq=0.01, softirq=142.43, steal=0.0, guest=0.0, guest_nice=0.0)
 
   .. versionchanged:: 4.1.0 added *interrupt* and *dpc* fields on Windows.
 
-    .. warning::
-      CPU times are always supposed to increase over time, or at least remain
-      the same, and that's because time cannot go backwards.
-      Surprisingly sometimes this might not be the case (at least on Windows
-      and Linux), see `#1210 <https://github.com/giampaolo/psutil/issues/1210#issuecomment-363046156>`__.
+  .. versionchanged:: 8.0.0
+     ``cpu_times()`` field order was standardized: ``user``, ``system``,
+     ``idle`` are now always the first three fields. Previously on Linux,
+     macOS, and BSD the first three were ``user``, ``nice``, ``system``.
+  .. warning::
+    in version 8.0.0 the named tuple changed field order. Positional access
+    (e.g. ``cpu_times()[3]``) may silently return the wrong field. Always use
+    attribute access instead (e.g. ``cpu_times().idle``).
+
+  .. warning::
+    CPU times are always supposed to increase over time, or at least remain the
+    same, and that's because time cannot go backwards. Surprisingly sometimes
+    this might not be the case (at least on Windows and Linux), see `#1210
+    <https://github.com/giampaolo/psutil/issues/1210#issuecomment-363046156>`__.
 
 .. function:: cpu_percent(interval=None, percpu=False)
 
@@ -341,9 +351,9 @@ Memory
 
   - **total**: total physical memory (exclusive swap).
   - **available**: memory that can be given instantly to processes without the
-    system going into swap. It is calculated by summing different memory values
-    depending on the platform (on Linux it matches the ``MemAvailable`` kernel
-    field). This is the recommended field for monitoring actual memory usage
+    system going into swap. On Linux it uses the ``MemAvailable`` field from
+    ``/proc/meminfo`` *(kernel 3.14+)*; on older kernels it falls back to an
+    estimate. This is the recommended field for monitoring actual memory usage
     in a cross-platform fashion.
   - **percent**: the percentage usage calculated as
     ``(total - available) / total * 100``.
@@ -874,6 +884,15 @@ Sensors
   All temperatures are expressed in celsius unless *fahrenheit* is set to
   ``True``.
   If sensors are not supported by the OS an empty dict is returned.
+  Each named tuple includes 4 fields:
+
+  - **label**: a string label for the sensor, if available, else ``""``.
+  - **current**: current temperature, or ``None`` if not available.
+  - **high**: temperature at which the system will throttle, or ``None``
+    if not available.
+  - **critical**: temperature at which the system will shut down, or
+    ``None`` if not available.
+
   Example::
 
     >>> import psutil
@@ -981,7 +1000,7 @@ Other system info
   - **name**: the name of the user.
   - **terminal**: the tty or pseudo-tty associated with the user, if any,
     else ``None``.
-  - **host**: the host name associated with the entry, if any.
+  - **host**: the host name associated with the entry, if any, else ``None``.
   - **started**: the creation time as a floating point number expressed in
     seconds since the epoch.
   - **pid**: the PID of the login process (like sshd, tmux, gdm-session-worker,
@@ -1862,13 +1881,15 @@ Process class
       the process has reached since it started.
     - **peak_vms** *(Linux)*: the highest VMS value the process has reached
       since it started.
-    - **rss_anon** *(Linux, macOS)*: resident anonymous pages (heap, stack,
-      private mappings) not backed by any file, such as heap allocations,
-      stack, and private ``mmap(MAP_ANONYMOUS)`` regions.
+    - **rss_anon** *(Linux, macOS)*: resident anonymous pages (heap,
+      stack, private mappings) not backed by any file, such as heap
+      allocations, stack, and private ``mmap(MAP_ANONYMOUS)`` regions. Set to 0
+      on Linux < 4.5.
     - **rss_file** *(Linux, macOS)*: resident file-backed memory; pages mapped
-      from files (shared libraries, mmap'd files).
+      from files (shared libraries, mmap'd files). Set to 0 on Linux < 4.5.
     - **rss_shmem** *(Linux)*: resident shared memory pages (``tmpfs``,
-      ``shm_open``). ``rss_anon + rss_file + rss_shmem`` equals **rss**.
+      ``shm_open``). ``rss_anon + rss_file + rss_shmem`` equals **rss**. Set to
+      0 on Linux < 4.5.
     - **wired** *(macOS)*: memory pinned in RAM by the kernel on behalf of this
       process; cannot be compressed or paged out.
     - **swap** *(Linux)*: process memory currently in swap. Equivalent to
@@ -1877,7 +1898,8 @@ Process class
     - **compressed** *(macOS)*: pages held in the in-RAM memory compressor; not
       counted in **rss**. A large value signals memory pressure but has not yet
       triggered swapping.
-    - **hugetlb** *(Linux)*: resident memory backed by huge pages.
+    - **hugetlb** *(Linux)*: resident memory backed by huge pages. Set to 0 on
+      Linux < 4.4.
     - **phys_footprint** *(macOS)*: total physical memory impact including
       compressed pages. What Xcode and ``footprint(1)`` report; prefer this
       over **rss** macOS memory monitoring.
