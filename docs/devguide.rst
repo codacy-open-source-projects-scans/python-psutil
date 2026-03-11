@@ -1,45 +1,44 @@
-psutil development guide
-========================
+Development guide
+=================
 
 Build, setup and running tests
-..............................
+------------------------------
 
-psutil makes extensive use of C extension modules, meaning a C compiler is
-required, see
-`install instructions <https://github.com/giampaolo/psutil/blob/master/INSTALL.rst>`__.
-Once you have a compiler installed run:
+- psutil makes extensive use of C extension modules, meaning a C compiler is
+  required, see :doc:`install instructions <install>`. Once you have a compiler
+  installed run:
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    git clone git@github.com:giampaolo/psutil.git
-    make install-sysdeps      # install gcc and python headers
-    make install-pydeps-test  # install python deps necessary to run unit tests
-    make build
-    make install
-    make test
+      git clone git@github.com:giampaolo/psutil.git
+      make install-sysdeps      # install gcc and python headers
+      make install-pydeps-test  # install python deps necessary to run unit tests
+      make build
+      make install
+      make test
 
 - ``make`` (and the accompanying `Makefile`_) is the designated tool to build,
-  install, run tests and do pretty much anything that involves development.
-  useful commands are:
+  install, run tests and do pretty much anything that involves development,
+  including on Windows. Some useful commands:
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    make clean                # remove build files
-    make install-pydeps-dev   # install dev deps (ruff, black, ...)
-    make test                 # run tests
-    make test-parallel        # run tests in parallel (faster)
-    make test-memleaks        # run memory leak tests
-    make test-coverage        # run test coverage
-    make lint-all             # run linters
-    make fix-all              # fix linters errors
-    make uninstall
-    make help
+      make clean                # remove build files
+      make install-pydeps-dev   # install dev deps (ruff, black, ...)
+      make test                 # run tests
+      make test-parallel        # run tests in parallel (faster)
+      make test-memleaks        # run memory leak tests
+      make test-coverage        # run test coverage
+      make lint-all             # run linters
+      make fix-all              # fix linters errors
+      make uninstall
+      make help
 
 - To run a specific unit test:
 
-.. code-block:: bash
+  .. code-block::
 
-    make test ARGS=tests/test_system.py
+      make test ARGS=tests/test_system.py
 
 - Do not use ``sudo``. ``make install`` installs psutil as a limited user in
   "edit" / development mode, meaning you can edit psutil code on the fly while
@@ -47,9 +46,9 @@ Once you have a compiler installed run:
 
 - If you want to target a specific Python version:
 
-.. code-block:: bash
+  .. code-block::
 
-    make test PYTHON=python3.8
+      make test PYTHON=python3.8
 
 Windows
 -------
@@ -60,10 +59,32 @@ Windows
   provides a Unix-like environment where ``make`` works.
 - Once inside Git Bash, you can run the usual ``make`` commands:
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    make build
-    make test-parallel
+      make build
+      make test-parallel
+
+Debug mode
+----------
+
+If you want to debug unusual situations or want to report a bug, it may be
+useful to enable debug mode via ``PSUTIL_DEBUG`` environment variable. In this
+mode, psutil may (or may not) print additional information to stderr. Usually
+these are error conditions which are not severe, and hence are ignored (instead
+of crashing). Unit tests automatically run with debug mode enabled. On UNIX:
+
+::
+
+  $ PSUTIL_DEBUG=1 python3 script.py
+  psutil-debug [psutil/_psutil_linux.c:150]> setmntent() failed (ignored)
+
+On Windows:
+
+::
+
+  set PSUTIL_DEBUG=1 python.exe script.py
+  psutil-debug [psutil/arch/windows/proc.c:90]> NtWow64ReadVirtualMemory64(pbi64.PebBaseAddress) -> 998 (Unknown error) (ignored)
+
 
 Coding style
 ------------
@@ -88,12 +109,16 @@ Code organization
 
 .. code-block:: bash
 
-    psutil/__init__.py                   # main psutil namespace ("import psutil")
-    psutil/_ps{platform}.py              # platform-specific python wrapper
-    psutil/_psutil_{platform}.c          # platform-specific C extension
-    psutil/arch/{platform}/*.c           # platform-specific C extension
-    tests/test_process|system.py         # main test suite
-    tests/test_{platform}.py             # platform-specific test suite
+    psutil/__init__.py                   # Main API namespace ("import psutil")
+    psutil/_common.py                    # Generic utilities
+    psutil/_ntuples.py                   # Named tuples returned by psutil APIs
+    psutil/_enums.py                     # Enum containers backing psutil constants
+    psutil/_ps{platform}.py              # Platform-specific python wrappers
+    psutil/_psutil_{platform}.c          # Platform-specific C extensions (entry point)
+    psutil/arch/all/*.c                  # C code common to all platforms
+    psutil/arch/{platform}/*.c           # Platform-specific C extension
+    tests/test_process|system.py         # Main system/process API tests
+    tests/test_{platform}.py             # Platform-specific tests
 
 Adding a new API
 ----------------
@@ -111,8 +136,8 @@ Typically, this is what you do:
   ``tests/test_{platform}.py`` (e.g. `tests/test_linux.py`_).
   This usually means testing the return value of the new API against
   a system CLI tool.
-- Update the doc in ``docs/index.py``.
-- Update `HISTORY.rst`_ and `CREDITS`_ files.
+- Update the doc in ``docs/api.rst``.
+- Update `changelog.rst`_ and `CREDITS`_ files.
 - Make a pull request.
 
 Make a pull request
@@ -129,21 +154,21 @@ Make a pull request
 Continuous integration
 ----------------------
 
-Unit tests are automatically run on every ``git push`` on **Linux**, **macOS**,
-**Windows**, **FreeBSD**, **NetBSD**, **OpenBSD**.
-AIX and Solaris does not have continuous test integration.
+Unit tests are automatically run on every ``git push`` on all platforms except
+AIX. See config files in  `.github/workflows <https://github.com/giampaolo/psutil/tree/master/.github/workflows>`_
+directory.
 
 Documentation
 -------------
 
-- doc source code is written in a single file: ``docs/index.rst``.
+- doc is under ``docs/``.
 - doc can be built with ``make install-pydeps-dev; cd docs; make html``.
 - public doc is hosted at https://psutil.readthedocs.io.
 
 .. _`CONTRIBUTING.md`: https://github.com/giampaolo/psutil/blob/master/CONTRIBUTING.md
 .. _`CREDITS`: https://github.com/giampaolo/psutil/blob/master/CREDITS
 .. _`Git for Windows`: <https://git-scm.com/install/windows>`
-.. _`HISTORY.rst`: https://github.com/giampaolo/psutil/blob/master/HISTORY.rst
+.. _`changelog.rst`: https://github.com/giampaolo/psutil/blob/master/docs/changelog.rst
 .. _`Makefile`: https://github.com/giampaolo/psutil/blob/master/Makefile
 .. _`PEP-7`: https://www.python.org/dev/peps/pep-0007/
 .. _`PEP-8`: https://www.python.org/dev/peps/pep-0008/

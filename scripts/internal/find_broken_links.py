@@ -97,15 +97,7 @@ def parse_rst(fname):
     """Look for links in a .rst file."""
     with open(fname) as f:
         text = f.read()
-    urls = find_urls(text)
-    # HISTORY file has a lot of dead links.
-    if fname == 'HISTORY.rst' and urls:
-        urls = [
-            x
-            for x in urls
-            if not x.startswith('https://github.com/giampaolo/psutil/issues')
-        ]
-    return urls
+    return find_urls(text)
 
 
 def parse_py(fname):
@@ -181,7 +173,7 @@ def get_urls(fname):
         return parse_generic(fname)
 
 
-@memoize
+@functools.lru_cache
 def validate_url(url):
     """Validate the URL by attempting an HTTP connection.
     Makes an HTTP-HEAD request for each URL.
