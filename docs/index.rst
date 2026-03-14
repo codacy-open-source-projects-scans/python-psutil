@@ -6,24 +6,21 @@
 Psutil documentation
 ====================
 
-|  |downloads| |stars| |forks| |contributors|
+.. image:: https://img.shields.io/badge/GitHub-repo-blue
+   :target: https://github.com/giampaolo/psutil
+   :alt: GitHub repo
 
-.. |downloads| image:: https://img.shields.io/pypi/dm/psutil.svg
-    :target: https://clickpy.clickhouse.com/dashboard/psutil
-    :alt: Downloads
+.. image:: https://img.shields.io/badge/GitHub-issues-blue
+   :target: https://github.com/giampaolo/psutil/issues
+   :alt: GitHub issues
 
-.. |stars| image:: https://img.shields.io/github/stars/giampaolo/psutil.svg
-    :target: https://github.com/giampaolo/psutil/stargazers
-    :alt: Github stars
+.. image:: https://readthedocs.org/projects/psutil/badge/?version=latest
+   :target: https://app.readthedocs.org/projects/psutil/builds/
+   :alt: ReadTheDocs
 
-.. |forks| image:: https://img.shields.io/github/forks/giampaolo/psutil.svg
-    :target: https://github.com/giampaolo/psutil/network/members
-    :alt: Github forks
-
-.. |contributors| image:: https://img.shields.io/github/contributors/giampaolo/psutil.svg
-    :target: https://github.com/giampaolo/psutil/graphs/contributors
-    :alt: Contributors
-
+.. image:: https://img.shields.io/pypi/v/psutil.svg?label=Latest%20version&color=red
+   :target: https://pypi.org/project/psutil
+   :alt: Latest version
 
 psutil (python system and process utilities) is a cross-platform library for
 retrieving information on running
@@ -33,7 +30,7 @@ It is useful mainly for **system monitoring**, **profiling**, **limiting
 process resources** and the **management of running processes**.
 It implements many functionalities offered by UNIX command line tools
 such as: *ps, top, lsof, netstat, ifconfig, who, df, kill, free, nice,
-ionice, iostat, iotop, uptime, pidof, tty, taskset, pmap*.
+ionice, iostat, iotop, uptime, pidof, tty, taskset, pmap* and others.
 psutil currently supports the following platforms, from **Python 3.7** onwards:
 
 - **Linux**
@@ -42,6 +39,9 @@ psutil currently supports the following platforms, from **Python 3.7** onwards:
 - **FreeBSD, OpenBSD**, **NetBSD**
 - **Sun Solaris**
 - **AIX**
+
+psutil is used by `many notable projects <adoption.html>`__ including
+TensorFlow, PyTorch, Home Assistant, Ansible, and Celery.
 
 Sponsors
 --------
@@ -75,15 +75,15 @@ Funding
 
 While psutil is free software and will always be, the project would benefit
 immensely from some funding.
-psutil is among the `top 100 <https://clickpy.clickhouse.com/dashboard/psutil>`__
+psutil is among the `top 100 <https://clickpy.clickhouse.com/dashboard/psutil>`_
 most-downloaded Python packages, and keeping up with bug reports, user support,
 and ongoing maintenance has become increasingly difficult to sustain as a
 one-person effort.
 If you're a company that's making significant use of psutil you can consider
-becoming a sponsor via `GitHub <https://github.com/sponsors/giampaolo>`__,
-`Open Collective <https://opencollective.com/psutil>`__ or
-`PayPal <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=A9ZS7PKKRM3S8>`__.
-Sponsors can have their logo displayed here and in the psutil `documentation <https://psutil.readthedocs.io>`__.
+becoming a sponsor via `GitHub <https://github.com/sponsors/giampaolo>`_,
+`Open Collective <https://opencollective.com/psutil>`_ or
+`PayPal <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=A9ZS7PKKRM3S8>`_.
+Sponsors can have their logo displayed here and in the psutil `documentation <https://psutil.readthedocs.io>`_.
 
 Security
 --------
@@ -101,6 +101,7 @@ Table of Contents
    API Reference <api>
    Recipes <recipes>
    Platform support <platform>
+   Who uses psutil <adoption>
    Development guide <devguide>
    FAQs <faq>
    Timeline <timeline>
