@@ -4,37 +4,20 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Cross-platform lib for process and system monitoring in Python.
+"""Cross-platform lib for process and system monitoring in Python."""
 
-NOTE: the syntax of this script MUST be kept compatible with Python 2.7.
-"""
-
-from __future__ import print_function
-
-import ast
 import contextlib
 import glob
 import io
 import os
+import pathlib
 import shutil
 import struct
 import subprocess
 import sys
 import sysconfig
 import tempfile
-import textwrap
 import warnings
-
-if sys.version_info[0] == 2:
-    sys.exit(textwrap.dedent("""\
-        As of version 7.0.0 psutil no longer supports Python 2.7, see:
-        https://github.com/giampaolo/psutil/issues/2480
-        Latest version supporting Python 2.7 is psutil 6.1.X.
-        Install it with:
-
-            python2 -m pip install psutil==6.1.*\
-        """))
-
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -50,22 +33,25 @@ with warnings.catch_warnings():
         from distutils.core import setup
 
 
-HERE = os.path.abspath(os.path.dirname(__file__))
+ROOT_DIR = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT_DIR))
 
-# ...so we can import _common.py
-sys.path.insert(0, os.path.join(HERE, "psutil"))
+from _bootstrap import get_version  # noqa: E402
+from _bootstrap import load_module  # noqa: E402
 
-from _common import AIX  # noqa: E402
-from _common import BSD  # noqa: E402
-from _common import FREEBSD  # noqa: E402
-from _common import LINUX  # noqa: E402
-from _common import MACOS  # noqa: E402
-from _common import NETBSD  # noqa: E402
-from _common import OPENBSD  # noqa: E402
-from _common import POSIX  # noqa: E402
-from _common import SUNOS  # noqa: E402
-from _common import WINDOWS  # noqa: E402
-from _common import hilite  # noqa: E402
+_common = load_module(ROOT_DIR / "psutil" / "_common.py")
+
+AIX = _common.AIX
+BSD = _common.BSD
+FREEBSD = _common.FREEBSD
+LINUX = _common.LINUX
+MACOS = _common.MACOS
+NETBSD = _common.NETBSD
+OPENBSD = _common.OPENBSD
+POSIX = _common.POSIX
+SUNOS = _common.SUNOS
+WINDOWS = _common.WINDOWS
+hilite = _common.hilite
 
 PYPY = '__pypy__' in sys.builtin_module_names
 PY36_PLUS = sys.version_info[:2] >= (3, 6)
@@ -87,24 +73,31 @@ TEST_DEPS = [
     'wmi ; os_name == "nt" and implementation_name != "pypy"',
 ]
 
+# Linter deps, installable via `pip install .[lint]` or
+# `make install-pydeps-lint`.
+LINT_DEPS = [
+    "black",
+    "ruff",
+    "sphinx-lint",
+    "toml-sort",
+]
+
 # Development deps, installable via `pip install .[dev]` or
 # `make install-pydeps-dev`.
-DEV_DEPS = TEST_DEPS + [
+DEV_DEPS = [
+    *TEST_DEPS,
+    *LINT_DEPS,
     "abi3audit",
-    "black",
     "check-manifest",
     "coverage",
     "packaging",
-    "pylint",
+    "pylint",  # not enforced
     "pyperf",
     "pypinfo",
     "pytest-cov",
     "requests",
-    "rstcheck",
-    "ruff",
     "sphinx",
     "sphinx_rtd_theme",
-    "toml-sort",
     "twine",
     "validate-pyproject[all]",
     "virtualenv",
@@ -137,20 +130,6 @@ if POSIX:
     sources.extend(glob.glob("psutil/arch/posix/*.c"))
 
 
-def get_version():
-    INIT = os.path.join(HERE, 'psutil/__init__.py')
-    with open(INIT) as f:
-        for line in f:
-            if line.startswith('__version__'):
-                ret = ast.literal_eval(line.strip().split(' = ')[1])
-                assert ret.count('.') == 2, ret
-                for num in ret.split('.'):
-                    assert num.isdigit(), ret
-                return ret
-        msg = "couldn't find version string"
-        raise ValueError(msg)
-
-
 VERSION = get_version()
 macros.append(('PSUTIL_VERSION', int(VERSION.replace('.', ''))))
 
@@ -172,8 +151,8 @@ else:
 
 
 def get_long_description():
-    script = os.path.join(HERE, "scripts", "internal", "convert_readme.py")
-    readme = os.path.join(HERE, 'README.rst')
+    script = ROOT_DIR / "scripts" / "internal" / "convert_readme.py"
+    readme = ROOT_DIR / 'README.rst'
     p = subprocess.Popen(
         [sys.executable, script, readme],
         stdout=subprocess.PIPE,
@@ -315,10 +294,7 @@ if WINDOWS:
         ],
         # extra_compile_args=["/W 4"],
         # extra_link_args=["/DEBUG"],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif MACOS:
@@ -337,10 +313,7 @@ elif MACOS:
             '-framework',
             'IOKit',
         ],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif FREEBSD:
@@ -356,10 +329,7 @@ elif FREEBSD:
         ),
         define_macros=macros,
         libraries=["devstat"],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif OPENBSD:
@@ -375,10 +345,7 @@ elif OPENBSD:
         ),
         define_macros=macros,
         libraries=["kvm"],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif NETBSD:
@@ -394,10 +361,7 @@ elif NETBSD:
         ),
         define_macros=macros,
         libraries=["kvm", "jemalloc"],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif LINUX:
@@ -414,10 +378,7 @@ elif LINUX:
             + glob.glob("psutil/arch/linux/*.c")
         ),
         define_macros=macros,
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif SUNOS:
@@ -432,10 +393,7 @@ elif SUNOS:
         ),
         define_macros=macros,
         libraries=["kstat", "nsl", "socket"],
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 elif AIX:
@@ -450,10 +408,7 @@ elif AIX:
         ),
         libraries=["perfstat"],
         define_macros=macros,
-        # fmt: off
-        # python 2.7 compatibility requires no comma
-        **py_limited_api
-        # fmt: on
+        **py_limited_api,
     )
 
 else:
@@ -530,8 +485,9 @@ def main():
     )
     if setuptools is not None:
         extras_require = {
-            "dev": DEV_DEPS,
             "test": TEST_DEPS,
+            "lint": LINT_DEPS,
+            "dev": DEV_DEPS,
         }
         kwargs.update(
             python_requires=">=3.7",

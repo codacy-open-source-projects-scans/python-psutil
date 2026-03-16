@@ -6,49 +6,29 @@
 
 """This gets executed on 'git commit' and rejects the commit in case
 the submitted code does not pass validation. Validation is run only
-against the files which were modified in the commit. Install this with
-"make install-git-hooks".
+against the files which were modified in the commit.
 """
 
 import os
+import pathlib
 import shlex
 import shutil
 import subprocess
 import sys
 
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+from _bootstrap import load_module  # noqa: E402
+
+_common = load_module(ROOT_DIR / "psutil" / "_common.py")
+hilite = _common.hilite
+
 PYTHON = sys.executable
 LINUX = sys.platform.startswith("linux")
 
 
-def term_supports_colors():
-    try:
-        import curses
-
-        assert sys.stderr.isatty()
-        curses.setupterm()
-        return curses.tigetnum("colors") > 0
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def hilite(s, ok=True, bold=False):
-    """Return an highlighted version of 'string'."""
-    if not term_supports_colors():
-        return s
-    attr = []
-    if ok is None:  # no color
-        pass
-    elif ok:  # green
-        attr.append("32")
-    else:  # red
-        attr.append("31")
-    if bold:
-        attr.append("1")
-    return f"\x1b[{';'.join(attr)}m{s}\x1b[0m"
-
-
 def exit_with(msg):
-    print(hilite("Commit aborted. " + msg, ok=False), file=sys.stderr)
+    print(hilite("Commit aborted. " + msg, color="red"), file=sys.stderr)
     sys.exit(1)
 
 
@@ -134,12 +114,12 @@ def clang_format(files):
     )
 
 
-def toml_sort(files):
+def lint_toml(files):
     run_cmd(["toml-sort", "--check"], files, "toml-sort", fixer="fix-toml")
 
 
-def rstcheck(files):
-    run_cmd(["rstcheck", "--config=pyproject.toml"], files, "rstcheck")
+def lint_rst(files):
+    run_cmd(["sphinx-lint"], files, "sphinx-lint")
 
 
 def dprint():
@@ -167,8 +147,8 @@ def main():
     black(py)
     ruff(py)
     clang_format(c)
-    rstcheck(rst)
-    toml_sort(toml)
+    lint_rst(rst)
+    lint_toml(toml)
     dprint()
 
     if new_rm_mv:

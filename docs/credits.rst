@@ -1,5 +1,4 @@
 .. currentmodule:: psutil
-.. include:: _links.rst
 
 Credits
 =======
@@ -156,7 +155,7 @@ Code contributors by year
 
 * `Amir Rossert`_ - :gh:`2156`, :gh:`2345`
 * `Bernhard Urban-Forster`_ - :gh:`2135`
-* `Chris Lalancette`_ - :gh:`2037` (:func:`net_if_stats()` flags arg on POSIX)
+* `Chris Lalancette`_ - :gh:`2037` (:func:`net_if_stats` flags arg on POSIX)
 * `Daniel Li`_ - :gh:`2150`
 * `Daniel Widdis`_ - :gh:`2077`, :gh:`2160`
 * `Garrison Carter`_ - :gh:`2096`
@@ -188,7 +187,7 @@ Code contributors by year
 ~~~~
 
 * `Anselm Kruis`_ - :gh:`1695`
-* `Armin Gruner`_ - :gh:`1800` (:meth:`Process.environ()` on BSD)
+* `Armin Gruner`_ - :gh:`1800` (:meth:`Process.environ` on BSD)
 * `Chris Burger`_ - :gh:`1830`
 * `vser1`_ - :gh:`1637`
 * `Grzegorz Bokota`_ - :gh:`1758`, :gh:`1762`
@@ -208,7 +207,7 @@ Code contributors by year
 
 * `qcha0`_ - :gh:`1491`
 * `Alex Manuskin`_ - :gh:`1487`
-* `Ammar Askar`_ - :gh:`1485` (:func:`getloadavg()` on Windows)
+* `Ammar Askar`_ - :gh:`1485` (:func:`getloadavg` on Windows)
 * `Arnon Yaari`_ - :gh:`607`, :gh:`1349`, :gh:`1409`, :gh:`1500`, :gh:`1505`, :gh:`1507`, :gh:`1533`
 * `Athos Ribeiro`_ - :gh:`1585`
 * `Benjamin Drung`_ - :gh:`1462`
@@ -219,7 +218,7 @@ Code contributors by year
 * `EccoTheFlintstone`_ - :gh:`1368`, :gh:`1348`
 * `Erwan Le Pape`_ - :gh:`1570`
 * `Ghislain Le Meur`_ - :gh:`1379`
-* `Kamil Rytarowski`_ - :gh:`1526`, :gh:`1530` (:meth:`Process.cwd()` for NetBSD)
+* `Kamil Rytarowski`_ - :gh:`1526`, :gh:`1530` (:meth:`Process.cwd` for NetBSD)
 * `Nathan Houghton`_ - :gh:`1619`
 * `Samer Masterson`_ - :gh:`1480`
 * `Xiaoling Bao`_ - :gh:`1223`
@@ -228,7 +227,7 @@ Code contributors by year
 2018
 ~~~~
 
-* `Alex Manuskin`_ - :gh:`1284`, :gh:`1345`, :gh:`1350`, :gh:`1369` (:func:`sensors_temperatures()` for macOS, FreeBSD, Linux)
+* `Alex Manuskin`_ - :gh:`1284`, :gh:`1345`, :gh:`1350`, :gh:`1369` (:func:`sensors_temperatures` for macOS, FreeBSD, Linux)
 * `Arnon Yaari`_ - :gh:`1214`
 * `Dan Vinakovsky`_ - :gh:`1216`
 * `Denis Krienbühl`_ - :gh:`1260`
@@ -288,7 +287,7 @@ Code contributors by year
 
 * `Arnon Yaari`_ - :gh:`680`, :gh:`679`, :gh:`610`
 * `Bruno Binet`_ - :gh:`572`
-* `dasumin`_ - :gh:`541`
+* `Denis`_ - :gh:`541`
 * `Fabian Groffen`_ - :gh:`611`, :gh:`618`
 * `Gabi Davar`_ - :gh:`578`, :gh:`581`, :gh:`587`
 * `Jeff Tang`_ - :gh:`616`, :gh:`648`, :gh:`653`, :gh:`654`
@@ -342,7 +341,7 @@ Code contributors by year
 2011
 ~~~~
 
-* Jeremy Whitlock - :gh:`125`, :gh:`150`, :gh:`206`, :gh:`217`, :gh:`260` (:func:`net_io_counters()` and :func:`disk_io_counters()` on macOS)
+* Jeremy Whitlock - :gh:`125`, :gh:`150`, :gh:`206`, :gh:`217`, :gh:`260` (:func:`net_io_counters` and :func:`disk_io_counters` on macOS)
 
 2010
 ~~~~
@@ -353,7 +352,7 @@ Code contributors by year
 2009
 ~~~~
 
-* Yan Raber: `c861c08b <https://github.com/giampaolo/psutil/commit/c861c08b>`_ (Windows :func:`cpu_times()`), `15159111 <https://github.com/giampaolo/psutil/commit/15159111>`_ (Windows :meth:`Process.username()`)
+* Yan Raber: `c861c08b <https://github.com/giampaolo/psutil/commit/c861c08b>`_ (Windows :func:`cpu_times`), `15159111 <https://github.com/giampaolo/psutil/commit/15159111>`_ (Windows :meth:`Process.username`)
 * `Jay Loden`_ - `79128baa <https://github.com/giampaolo/psutil/commit/79128baa>`_ (first commit of FreeBSD implementation)
 
 2008
@@ -369,7 +368,6 @@ Code contributors by year
 
 .. _`Alex Laird`: https://github.com/alexdlaird
 .. _`Alexey Vazhnov`: https://opencollective.com/alexey-vazhnov
-.. _`Jakob P. Liljenberg`: https://github.com/aristocratos
 .. _`Artyom Vancyan`: https://github.com/ArtyomVancyan
 .. _`c0m4r`: https://github.com/c0m4r
 .. _`Chenyoo Hao`: https://opencollective.com/chenyoo-hao
@@ -383,8 +381,6 @@ Code contributors by year
 .. _`Johannes Maron`: https://github.com/codingjoe
 .. _`Karthik Kumar`: https://github.com/guilt
 .. _`Maximilian Wu`: https://github.com/maxesisn
-.. _`Mehver`: https://github.com/Mehver
-.. _`mirko`: https://github.com/mirbyte
 .. _`PySimpleGUI`: https://github.com/PySimpleGUI
 .. _`roboflow.com`: https://github.com/roboflow
 .. _`sansec.io`: https://github.com/sansecio
@@ -411,7 +407,6 @@ Code contributors by year
 .. Code contributors
 .. ============================================================================
 
-.. _`Aaron Shaw`: https://github.com/shawaj
 .. _`Adrian Page`: https://github.com/adpag
 .. _`qcha0`: https://github.com/qcha0
 .. _`Akos Kiss`: https://github.com/akosthekiss
@@ -424,8 +419,6 @@ Code contributors by year
 .. _`Anders Chrigström`: https://github.com/anders-chrigstrom
 .. _`Andre Caron`: https://github.com/AndreLouisCaron
 .. _`Anselm Kruis`: https://github.com/akruis
-.. _`Anthony Ramine`: https://github.com/nox
-.. _`Anthony Ryan`: https://github.com/anthonyryan1
 .. _`Antoine Pitrou`: https://github.com/pitrou
 .. _`Arcadiy Ivanov`: https://github.com/arcivanov
 .. _`Armin Gruner`: https://github.com/ArminGruner
@@ -438,26 +431,21 @@ Code contributors by year
 .. _`Bernhard Urban-Forster`: https://github.com/lewurm
 .. _`Bernát Gábor`: https://github.com/gaborbernat
 .. _`Bruno Binet`: https://github.com/bbinet
-.. _`Caleb Bassi`: https://github.com/calebjbassi
 .. _`Cedric Lamoriniere`: https://github.com/clamoriniere
 .. _`Chris Burger`: https://github.com/phobozad
 .. _`Chris Lalancette`: https://github.com/clalancette
-.. _`Cristian Vîjdea`: https://github.com/cvijdea
-.. _`cui fliter`: https://github.com/cuishuang
+.. _`Cristian Vîjdea`: https://github.com/cvijdea-bd
 .. _`Dan Vinakovsky`: https://github.com/hexaclock
 .. _`Danek Duvall`: https://github.com/dhduvall
 .. _`Daniel Beer`: https://github.com/dbeer1
 .. _`Daniel Li`: https://github.com/li-dan
-.. _`Daniel Lockyer`: https://github.com/daniellockyer
 .. _`Daniel Widdis`: https://github.com/dbwiddis
-.. _`dasumin`: https://github.com/dasumin
+.. _`Denis`: https://github.com/denis-sumin
 .. _`David Brochart`: https://github.com/davidbrochart
 .. _`David Knaack`: https://github.com/davidkna
 .. _`Denis Krienbühl`: https://github.com/href
-.. _`desbma`: https://github.com/desbma
 .. _`EccoTheFlintstone`: https://github.com/EccoTheFlintstone
 .. _`Eli Wenig`: https://github.com/elisw93
-.. _`Emmanuel Ferdman`: https://github.com/emmanuelferdman
 .. _`Erwan Le Pape`: https://github.com/erwan-le-pape
 .. _`ewedlund`: https://github.com/ewedlund
 .. _`Fabian Groffen`: https://github.com/fabian
@@ -468,24 +456,20 @@ Code contributors by year
 .. _`Frank Benkstein`: https://github.com/fbenkstein
 .. _`Gabi Davar`: https://github.com/mindw
 .. _`Garrison Carter`: https://github.com/garrisoncarter
-.. _`Georg Sauthoff`: https://github.com/gsauthof
 .. _`Ghislain Le Meur`: https://github.com/gigi206
 .. _`Giampaolo Rodola`: https://github.com/giampaolo
 .. _`Gleb Smirnoff`: https://github.com/glebius
-.. _`Gregory P. Smith`: https://github.com/gpshead
 .. _`Gregory Szorc`: https://github.com/indygreg
 .. _`Grzegorz Bokota`: https://github.com/Czaki
 .. _`Guido Imperiale`: https://github.com/crusaderky
 .. _`Guillermo`: https://github.com/guille
-.. _`Hang`: https://github.com/bebound
 .. _`Himanshu Shekhar`: https://github.com/himanshub16
 .. _`Hiroyuki Tanaka`: https://github.com/myheroyuki
 .. _`Hugo van Kemenade`: https://github.com/hugovk
-.. _`iam-py-test`: https://github.com/iam-py-test
 .. _`Ilya Georgievsky`: https://github.com/xBeAsTx
 .. _`Ilya Yanok`: https://github.com/yanok
 .. _`Irene Sheen`: https://github.com/ceda-ei
-.. _`Isaac K. Ko`: https://github.com/kyet
+.. _`Isaac K. Ko`: https://github.com/1saac-k
 .. _`Jaime Fullaondo`: https://github.com/truthbk
 .. _`Jake Omann`: https://github.com/jomann09
 .. _`Jakob P. Liljenberg`: https://github.com/aristocratos
@@ -497,26 +481,16 @@ Code contributors by year
 .. _`Jeff Tang`: https://github.com/mrjefftang
 .. _`Jeremy Humble`: https://github.com/jhumble
 .. _`John Burnett`: https://github.com/johnburnett
-.. _`Jon Dufresne`: https://github.com/jdufresne
 .. _`Jonathan Kohler`: https://github.com/kohlerjl
 .. _`Josiah Carlson`: https://github.com/josiahcarlson
 .. _`Julien Lebot`: https://github.com/julien-lebot
-.. _`Julien Stephan`: https://github.com/justeph
-.. _`Jérome Perrin`: https://github.com/perrinjerome
-.. _`Jérôme Duval`: https://github.com/korli
-.. _`Kale Kundert`: https://github.com/kalekundert
 .. _`Kamil Rytarowski`: https://github.com/krytarowski
 .. _`karthik`: https://github.com/karthikrev
-.. _`Karthikeyan Singaravelan`: https://github.com/tirkarthi
-.. _`Kian-Meng Ang`: https://github.com/kianmeng
 .. _`Koen Kooi`: https://github.com/koenkooi
-.. _`kuzmich321`: https://github.com/kuzmich321
 .. _`Landry Breuil`: https://github.com/landryb
 .. _`Lawrence D'Anna`: https://github.com/smoofra
 .. _`Lawrence Ye`: https://github.com/LEAFERx
-.. _`lgc2333`: https://github.com/lgc2333
 .. _`Lysandros Nikolaou`: https://github.com/lysnikolaou
-.. _`maozguttman`: https://github.com/maozguttman
 .. _`Marc Abramowitz`: https://github.com/msabramo
 .. _`Marcel Telka`: https://github.com/mtelka
 .. _`Mark Derbecker`: https://github.com/mpderbec
@@ -529,10 +503,8 @@ Code contributors by year
 .. _`Maxime Mouial`: https://github.com/hush-hush
 .. _`Mayank Jha`: https://github.com/maynk27
 .. _`Michał Górny`: https://github.com/mgorny
-.. _`Mickaël Schoentgen`: https://github.com/BoboTiG
 .. _`Mike Hommey`: https://github.com/glandium
 .. _`Mike Sarahan`: https://github.com/msarahan
-.. _`Miro Hrončok`: https://github.com/hroncok
 .. _`Nathan Houghton`: https://github.com/n1000
 .. _`Nicolas Hennion`: https://github.com/nicolargo
 .. _`Nikhil Marathe`: https://github.com/nikhilm
@@ -543,12 +515,9 @@ Code contributors by year
 .. _`Olivier Dormond`: https://github.com/odormond
 .. _`Pablo Baeyens`: https://github.com/mx-psi
 .. _`Patrick Welche`: https://github.com/prlw1
-.. _`Peter Jeremy`: https://github.com/peterjeremy
 .. _`PetrPospisil`: https://github.com/PetrPospisil
 .. _`Pierre Fersing`: https://github.com/PierreF
 .. _`Po-Chuan Hsieh`: https://github.com/sunpoet
-.. _`Prodesire`: https://github.com/Prodesire
-.. _`ReenigneArcher`: https://github.com/ReenigneArcher
 .. _`Riccardo Schirone`: https://github.com/ret2libc
 .. _`Ryan Carsten Schmidt`: https://github.com/ryandesign
 .. _`Ryo Onodera`: https://github.com/ryoon
@@ -559,7 +528,6 @@ Code contributors by year
 .. _`Sebastian-Gabriel Brestin`: https://github.com/bsebi
 .. _`Sergey Fedorov`: https://github.com/barracuda156
 .. _`Shade Gladden`: https://github.com/shadeyg56
-.. _`Shannon Pamperl`: https://github.com/shanman190
 .. _`sk6249`: https://github.com/sk6249
 .. _`spacewander`: https://github.com/spacewander
 .. _`Steve Dower`: https://github.com/zooba
@@ -570,16 +538,12 @@ Code contributors by year
 .. _`Syohei YOSHIDA`: https://github.com/syohex
 .. _`Thiago Borges Abdnur`: https://github.com/bolaum
 .. _`Thomas Klausner`: https://github.com/tklauser
-.. _`Tim Gates`: https://github.com/timgates42
 .. _`Tim Schlueter`: https://github.com/modelrockettier
 .. _`Timmy Konick`: https://github.com/tijko
-.. _`Tomáš Chvátal`: https://github.com/scarabeusiv
-.. _`Torsten Blum`: https://github.com/Torsten-B
 .. _`Vincent A. Arcila`: https://github.com/jandrovins
 .. _`Wen Jia Liu (wj32)`: https://github.com/wj32
 .. _`Wilfried Goesgens`: https://github.com/dothebart
 .. _`Will Hawes`: https://github.com/wdh
-.. _`wxwright`: https://github.com/wxwright
 .. _`Xianpeng Shen`: https://github.com/shenxianpeng
 .. _`Xiaoling Bao`: https://github.com/xiaolingbao
 .. _`Xuehai Pan`: https://github.com/XuehaiPan
@@ -588,4 +552,3 @@ Code contributors by year
 .. _`Yaolong Huang`: http://airekans.github.io/
 .. _`Árni Már Jónsson`: https://github.com/arnimarj
 .. _`vser1`: https://github.com/vser1
-.. _`David Daeschler`: https://github.com/ddaeschler

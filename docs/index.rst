@@ -1,7 +1,6 @@
 .. module:: psutil
    :synopsis: psutil module
-.. moduleauthor:: Giampaolo Rodola' <grodola@gmail.com>
-.. include:: _links.rst
+.. moduleauthor:: Giampaolo Rodola <grodola@gmail.com>
 
 Psutil documentation
 ====================
@@ -22,12 +21,12 @@ Psutil documentation
     :target: https://clickpy.clickhouse.com/dashboard/psutil
     :alt: Downloads
 
-psutil (python system and process utilities) is a cross-platform library for
-retrieving information on running
+psutil (Python system and process utilities) is a cross-platform library for
+retrieving information about running
 **processes** and **system utilization** (CPU, memory, disks, network, sensors)
 in **Python**.
 It is useful mainly for **system monitoring**, **profiling**, **limiting
-process resources** and the **management of running processes**.
+process resources**, and **managing running processes**.
 It implements many functionalities offered by UNIX command line tools
 such as: *ps, top, lsof, netstat, ifconfig, who, df, kill, free, nice,
 ionice, iostat, iotop, uptime, pidof, tty, taskset, pmap* and others.
@@ -88,8 +87,8 @@ Sponsors can have their logo displayed here and in the psutil `documentation <ht
 Security
 --------
 
-To report a security vulnerability, please use the `Tidelift security
-contact`_.  Tidelift will coordinate the fix and disclosure.
+To report a security vulnerability, please use the `Tidelift security contact`_.
+Tidelift will coordinate the fix and disclosure.
 
 Table of Contents
 -----------------
@@ -110,3 +109,5 @@ Table of Contents
    :titlesonly:
 
    Changelog <changelog>
+
+.. _`Tidelift security contact`: https://tidelift.com/security

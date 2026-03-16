@@ -24,7 +24,7 @@ Build, setup and running tests
   .. code-block:: bash
 
       make clean                # remove build files
-      make install-pydeps-dev   # install dev deps (ruff, black, ...)
+      make install-pydeps-dev   # install all development deps (ruff, black, coverage, ...)
       make test                 # run tests
       make test-parallel        # run tests in parallel (faster)
       make test-memleaks        # run memory leak tests
@@ -69,9 +69,9 @@ Debug mode
 
 If you want to debug unusual situations or want to report a bug, it may be
 useful to enable debug mode via ``PSUTIL_DEBUG`` environment variable. In this
-mode, psutil may (or may not) print additional information to stderr. Usually
-these are error conditions which are not severe, and hence are ignored (instead
-of crashing). Unit tests automatically run with debug mode enabled. On UNIX:
+mode, psutil may print additional information to stderr. Usually these are
+non-severe error conditions that are ignored instead of causing a crash.
+Unit tests automatically run with debug mode enabled. On UNIX:
 
 ::
 
@@ -92,9 +92,6 @@ Coding style
 All style and formatting checks are automatically enforced both **locally on
 each `git commit`** and **remotely via a GitHub Actions pipeline**.
 
-- A **Git commit hook**, installed with `make install-git-hooks`, runs all
-  formatters and linters before each commit. The commit is rejected if any
-  check fails.
 - **Python** code follows the `PEP-8`_ style guide. We use `black` and `ruff`
   for formatting and linting.
 - **C** code generally follows the `PEP-7`_ style guide, with formatting
@@ -129,7 +126,7 @@ Typically, this is what you do:
 - Write the platform specific implementation in ``psutil/_ps{platform}.py``
   (e.g. `psutil/_pslinux.py`_).
 - If the change requires C code, write the C implementation in
-  ``psutil/arch/{platform}/file.c`` (e.g. `psutil/arch/linux/cpu.c`).
+  ``psutil/arch/{platform}/file.c`` (e.g. `psutil/arch/linux/disk.c`_).
 - Write a generic test in `tests/test_system.py`_ or
   `tests/test_process.py`_.
 - If possible, write a platform-specific test in
@@ -137,7 +134,7 @@ Typically, this is what you do:
   This usually means testing the return value of the new API against
   a system CLI tool.
 - Update the doc in ``docs/api.rst``.
-- Update `changelog.rst`_ and `CREDITS`_ files.
+- Update `changelog.rst`_ and `credits.rst`_ files.
 - Make a pull request.
 
 Make a pull request
@@ -155,7 +152,7 @@ Continuous integration
 ----------------------
 
 Unit tests are automatically run on every ``git push`` on all platforms except
-AIX. See config files in  `.github/workflows <https://github.com/giampaolo/psutil/tree/master/.github/workflows>`_
+AIX. See config files in the `.github/workflows <https://github.com/giampaolo/psutil/tree/master/.github/workflows>`_
 directory.
 
 Documentation
@@ -165,17 +162,16 @@ Documentation
 - doc can be built with ``make install-pydeps-dev; cd docs; make html``.
 - public doc is hosted at https://psutil.readthedocs.io.
 
-.. _`CONTRIBUTING.md`: https://github.com/giampaolo/psutil/blob/master/CONTRIBUTING.md
-.. _`CREDITS`: https://github.com/giampaolo/psutil/blob/master/CREDITS
-.. _`Git for Windows`: <https://git-scm.com/install/windows>`
 .. _`changelog.rst`: https://github.com/giampaolo/psutil/blob/master/docs/changelog.rst
+.. _`CONTRIBUTING.md`: https://github.com/giampaolo/psutil/blob/master/CONTRIBUTING.md
+.. _`credits.rst`: https://github.com/giampaolo/psutil/blob/master/docs/credits.rst
+.. _`Git for Windows`: https://git-scm.com/install/windows
 .. _`Makefile`: https://github.com/giampaolo/psutil/blob/master/Makefile
 .. _`PEP-7`: https://www.python.org/dev/peps/pep-0007/
 .. _`PEP-8`: https://www.python.org/dev/peps/pep-0008/
 .. _`psutil/__init__.py`: https://github.com/giampaolo/psutil/blob/master/psutil/__init__.py
 .. _`psutil/_pslinux.py`: https://github.com/giampaolo/psutil/blob/master/psutil/_pslinux.py
-.. _`psutil/_psutil_linux.c`: https://github.com/giampaolo/psutil/blob/master/psutil/_psutil_linux.c
+.. _`psutil/arch/linux/disk.c`: https://github.com/giampaolo/psutil/blob/master/psutil/arch/linux/disk.c
 .. _`tests/test_linux.py`: https://github.com/giampaolo/psutil/blob/master/tests/test_linux.py
 .. _`tests/test_process.py`: https://github.com/giampaolo/psutil/blob/master/tests/test_process.py
 .. _`tests/test_system.py`: https://github.com/giampaolo/psutil/blob/master/tests/test_system.py
-.. _`winmake.py`: https://github.com/giampaolo/psutil/blob/master/scripts/internal/winmake.py
