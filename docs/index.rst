@@ -98,12 +98,14 @@ Table of Contents
 
    Install <install>
    API Reference <api>
+   FAQ <faq>
    Recipes <recipes>
    Shell equivalents <shell_equivalents>
    Platform support <platform>
    Who uses psutil <adoption>
    Credits <credits>
    Development guide <devguide>
+   Migration <migration>
    Timeline <timeline>
 
 .. toctree::

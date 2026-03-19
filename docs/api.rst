@@ -1,8 +1,13 @@
 .. currentmodule:: psutil
+.. include:: _links.rst
 .. _availability:
 
 API reference
 =============
+
+.. note::
+   psutil 8.0 introduces breaking API changes. See the
+   :ref:`migration guide <migration-8.0>` if upgrading from 7.x.
 
 .. contents::
    :local:
@@ -29,10 +34,11 @@ CPU
   Platform-specific fields:
 
   - **nice** *(Linux, macOS, BSD)*: time spent by niced (prioritized) processes
-    executing in user mode; on Linux this also includes **guest_nice** time
+    executing in user mode; on Linux this also includes **guest_nice** time.
   - **iowait** *(Linux, SunOS, AIX)*: time spent waiting for I/O to complete.
     This is *not* accounted in **idle** time counter.
-  - **irq** *(Linux, BSD)*: time spent for servicing hardware interrupts
+  - **irq** *(Linux, Windows, BSD)*: time spent for servicing hardware
+    interrupts
   - **softirq** *(Linux)*: time spent for servicing software interrupts
   - **steal** *(Linux)*: time spent by other operating systems running
     in a virtualized environment
@@ -41,8 +47,6 @@ CPU
   - **guest_nice** *(Linux)*: time spent running a niced guest
     (virtual CPU for guest operating systems under the control of the Linux
     kernel)
-  - **interrupt** *(Windows)*: time spent for servicing hardware interrupts
-    (similar to "irq" on UNIX)
   - **dpc** *(Windows)*: time spent servicing deferred procedure calls (DPCs);
     DPCs are interrupts that run at a lower priority than standard interrupts.
 
@@ -58,23 +62,25 @@ CPU
      >>> psutil.cpu_times()
      scputimes(user=17411.7, system=3797.02, idle=51266.57, nice=77.99, iowait=732.58, irq=0.01, softirq=142.43, steal=0.0, guest=0.0, guest_nice=0.0)
 
+  .. note::
+    CPU times are always supposed to increase over time, or at least remain the
+    same, and that's because time cannot go backwards. Surprisingly sometimes
+    this might not be the case (at least on Windows and Linux), see `#1210
+    <https://github.com/giampaolo/psutil/issues/1210#issuecomment-363046156>`_.
+
   .. versionchanged:: 4.1.0
-     added *interrupt* and *dpc* fields on Windows.
+     added *irq* and *dpc* fields on Windows (*irq* was called *interrupt*
+     before 8.0.0).
+
+  .. versionchanged:: 8.0.0
+     *interrupt* field on Windows was renamed to *irq*; *interrupt* still
+     works but raises :exc:`DeprecationWarning`.
 
   .. versionchanged:: 8.0.0
      ``cpu_times()`` field order was standardized: ``user``, ``system``,
      ``idle`` are now always the first three fields. Previously on Linux,
      macOS, and BSD the first three were ``user``, ``nice``, ``system``.
-  .. warning::
-    in version 8.0.0 the named tuple changed field order. Positional access
-    (e.g. ``cpu_times()[3]``) may silently return the wrong field. Always use
-    attribute access instead (e.g. ``cpu_times().idle``).
-
-  .. warning::
-    CPU times are always supposed to increase over time, or at least remain the
-    same, and that's because time cannot go backwards. Surprisingly sometimes
-    this might not be the case (at least on Windows and Linux), see `#1210
-    <https://github.com/giampaolo/psutil/issues/1210#issuecomment-363046156>`_.
+     See :ref:`migration guide <migration-8.0>`.
 
 .. function:: cpu_percent(interval=None, percpu=False)
 
@@ -110,10 +116,10 @@ CPU
      [2.0, 1.0]
      >>>
 
-  .. warning::
+  .. note::
     the first time this function is called with *interval* = ``0.0`` or ``None``
     it will return a meaningless ``0.0`` value which you are supposed to
-    ignore.
+    ignore. See also :ref:`faq_cpu_percent` FAQ.
 
   .. versionchanged:: 5.9.6
      the function is now thread safe.
@@ -128,13 +134,14 @@ CPU
   On Linux "guest" and "guest_nice" percentages are not accounted in "user"
   and "user_nice" percentages.
 
-  .. warning::
+  .. note::
     the first time this function is called with *interval* = ``0.0`` or
     ``None`` it will return a meaningless ``0.0`` value which you are supposed
-    to ignore.
+    to ignore. See also :ref:`faq_cpu_percent` FAQ.
 
   .. versionchanged:: 4.1.0
-     two new *interrupt* and *dpc* fields are returned on Windows.
+     two new *irq* and *dpc* fields are returned on Windows (*irq* was
+     called *interrupt* before 8.0.0).
 
   .. versionchanged:: 5.9.6
      function is now thread safe.
@@ -309,14 +316,6 @@ Memory
   - **wired** *(macOS, BSD)*: memory pinned in RAM by the kernel (e.g. kernel
     code and critical data structures). It can never be moved to disk.
 
-  .. note::
-     - On Linux, **total**, **free**, **used**,  **shared**, and **available**
-       match the output of the ``free`` command.
-     - On macOS, **free**, **active**, **inactive**, and **wired** match
-       ``vm_stat`` output.
-     - On Windows, **total**, **used** ("In use"), and **available** match
-       the Task Manager (Performance > Memory tab).
-
   Below is a table showing implementation details. All info on Linux is retrieved from `/proc/meminfo`.
 
   .. list-table::
@@ -401,6 +400,14 @@ Memory
   .. note:: if you just want to know how much physical memory is left in a
     cross-platform manner, simply rely on **available** and **percent**
     fields.
+
+  .. note::
+     - On Linux, **total**, **free**, **used**,  **shared**, and **available**
+       match the output of the ``free`` command.
+     - On macOS, **free**, **active**, **inactive**, and **wired** match
+       ``vm_stat`` output.
+     - On Windows, **total**, **used** ("In use"), and **available** match
+       the Task Manager (Performance > Memory tab).
 
   .. note::  see `meminfo.py`_ script providing an example on how to convert
     bytes in a human readable form.
@@ -727,6 +734,7 @@ Network
   .. versionchanged:: 8.0.0
      *status* field is now a :class:`psutil.ConnectionStatus` enum member
      instead of a plain ``str``.
+     See :ref:`migration guide <migration-8.0>`.
 
 .. function:: net_if_addrs()
 
@@ -1102,6 +1110,8 @@ Exceptions
   exists. *name* is the name the process had before disappearing
   and gets set only if :meth:`Process.name` was previously called.
 
+  See also :ref:`faq_no_such_process` FAQ.
+
 .. exception:: ZombieProcess(pid, name=None, ppid=None, msg=None)
 
   This may be raised by :class:`Process` class methods when querying a zombie
@@ -1109,6 +1119,8 @@ Exceptions
   *name* and *ppid* attributes are available if :meth:`Process.name` or
   :meth:`Process.ppid` methods were called before the process turned into a
   zombie.
+
+  See also :ref:`faq_zombie_process` FAQ.
 
   .. note::
 
@@ -1123,6 +1135,8 @@ Exceptions
   Raised by :class:`Process` class methods when permission to perform an
   action is denied due to insufficient privileges.
   *name* attribute is available if :meth:`Process.name` was previously called.
+
+  See also :ref:`faq_access_denied` FAQ.
 
 .. exception:: TimeoutExpired(seconds, pid=None, name=None, msg=None)
 
@@ -1156,23 +1170,12 @@ Process class
 
     the way this class is bound to a process is via its **PID**.
     That means that if the process terminates and the OS reuses its PID you may
-    inadvertently end up querying another process. To prevent this problem
-    you can use :meth:`is_running` first.
-    The only methods which preemptively check whether PID has been reused
-    (via PID + creation time) are:
-    :meth:`nice` (set),
-    :meth:`ionice`  (set),
-    :meth:`cpu_affinity` (set),
-    :meth:`rlimit` (set),
-    :meth:`children`,
-    :meth:`ppid`,
-    :meth:`parent`,
-    :meth:`parents`,
-    :meth:`suspend`
-    :meth:`resume`,
-    :meth:`send_signal`,
-    :meth:`terminate` and
-    :meth:`kill`.
+    inadvertently end up interacting with another process. To prevent this
+    problem you can use :meth:`is_running` first.
+    Some methods (e.g. setters and signal-related methods) perform an
+    additional check based on PID + creation time and will raise
+    :exc:`NoSuchProcess` if the PID has been reused. See :ref:`faq_pid_reuse`
+    FAQ for details.
 
   .. method:: oneshot()
 
@@ -1399,6 +1402,7 @@ Process class
     .. versionchanged:: 8.0.0
        return value is now a :class:`psutil.ProcessStatus` enum member instead
        of a plain ``str``.
+       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: cwd()
 
@@ -1466,6 +1470,7 @@ Process class
     .. versionchanged:: 8.0.0
        on Windows, return value is now a :class:`psutil.ProcessPriority` enum
        member.
+       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: ionice(ioclass=None, value=None)
 
@@ -1519,6 +1524,7 @@ Process class
 
     .. versionchanged:: 8.0.0
        *ioclass* is now a :class:`psutil.ProcessIOPriority` enum member.
+       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: rlimit(resource, limits=None)
 
@@ -1695,6 +1701,11 @@ Process class
        2.9
 
     .. note::
+      the first time this method is called with interval = ``0.0`` or
+      ``None`` it will return a meaningless ``0.0`` value which you are
+      supposed to ignore. See also :ref:`faq_cpu_percent` FAQ.
+
+    .. note::
       the returned value can be > 100.0 in case of a process running multiple
       threads on different CPU cores.
 
@@ -1703,18 +1714,13 @@ Process class
       CPUs (differently from :func:`psutil.cpu_percent`).
       This means that a busy loop process running on a system with 2 logical
       CPUs will be reported as having 100% CPU utilization instead of 50%.
-      This was done in order to be consistent with ``top`` UNIX utility
+      This was done in order to be consistent with ``top`` UNIX utility,
       and also to make it easier to identify processes hogging CPU resources
       independently from the number of CPUs.
       It must be noted that ``taskmgr.exe`` on Windows does not behave like
       this (it would report 50% usage instead).
       To emulate Windows ``taskmgr.exe`` behavior you can do:
       ``p.cpu_percent() / psutil.cpu_count()``.
-
-    .. warning::
-      the first time this method is called with interval = ``0.0`` or
-      ``None`` it will return a meaningless ``0.0`` value which you are
-      supposed to ignore.
 
   .. method:: cpu_affinity(cpus=None)
 
@@ -1793,8 +1799,9 @@ Process class
 
     - **rss**: aka "Resident Set Size". The portion of physical memory
       currently held by this process (code, data, stack, and mapped files that
-      are resident). Pages swapped out to disk are **not** counted. On UNIX it
+      are resident). Pages swapped out to disk are not counted. On UNIX it
       matches the ``top`` RES column. On Windows it maps to ``WorkingSetSize``.
+      See also :ref:`faq_memory_rss_vs_vms` FAQ.
 
     - **vms**: aka "Virtual Memory Size". The total address space reserved by
       the process, including pages not yet touched, pages in swap, and
@@ -1847,10 +1854,12 @@ Process class
     .. versionchanged:: 8.0.0
        Linux: *lib* and *dirty* removed (always 0 since Linux 2.6). Deprecated
        aliases returning 0 and emitting `DeprecationWarning` are kept.
+       See :ref:`migration guide <migration-8.0>`.
 
     .. versionchanged:: 8.0.0
-       macOS: *pfaults* and *pageins* removed with **no backward-compat
+       macOS: *pfaults* and *pageins* removed with **no backward-compatible
        aliases**. Use :meth:`page_faults` instead.
+       See :ref:`migration guide <migration-8.0>`.
 
     .. versionchanged:: 8.0.0
        Windows: eliminated old aliases: *wset* → *rss*, *peak_wset* →
@@ -1859,15 +1868,10 @@ Process class
        time *paged_pool*, *nonpaged_pool*, *peak_paged_pool*,
        *peak_nonpaged_pool* were moved to :meth:`memory_info_ex`. All these old
        names still work but raise `DeprecationWarning`.
+       See :ref:`migration guide <migration-8.0>`.
 
     .. versionchanged:: 8.0.0
        BSD: added *peak_rss*.
-
-    .. warning::
-      in version 8.0.0 the named tuple changed size and field order. Positional
-      access (e.g. ``p.memory_info()[3]`` or ``a, b, c = p.memory_info()``) may
-      break or silently return the wrong field. Always use attribute access
-      instead (e.g. ``p.memory_info().rss``).
 
   .. method:: memory_info_ex()
 
@@ -1986,6 +1990,7 @@ Process class
 
     .. deprecated:: 8.0.0
        use :meth:`memory_footprint` instead.
+       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: memory_percent(memtype="rss")
 
@@ -2274,6 +2279,7 @@ Process class
     .. versionchanged:: 8.0.0
        *status* field is now a :class:`psutil.ConnectionStatus` enum member
        instead of a plain ``str``.
+       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: connections()
 
@@ -2285,10 +2291,10 @@ Process class
   .. method:: is_running()
 
     Return whether the current process is running in the current process list.
-    This is reliable also in case the process is gone and its PID reused by
-    another process, therefore it must be preferred over doing
-    ``psutil.pid_exists(p.pid)``.
-    If PID has been reused this method will also remove the process from
+    Differently from ``psutil.pid_exists(p.pid)``, this is reliable also in
+    case the process is gone and its PID reused by another process.
+
+    If PID has been reused, this method will also remove the process from
     :func:`process_iter` internal cache.
 
     .. note::
@@ -2752,6 +2758,7 @@ Process status constants
   .. versionchanged:: 8.0.0
      constants are now :class:`psutil.ProcessStatus` enum members (were plain
      strings).
+     See :ref:`migration guide <migration-8.0>`.
 
 Process priority constants
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2774,6 +2781,7 @@ Process priority constants
   .. versionchanged:: 8.0.0
      constants are now :class:`psutil.ProcessPriority` enum members (were plain
      integers).
+     See :ref:`migration guide <migration-8.0>`.
 
 .. _const-ioprio:
 .. data:: IOPRIO_CLASS_NONE
@@ -2801,6 +2809,7 @@ Process priority constants
   .. versionchanged:: 8.0.0
      constants are now :class:`psutil.ProcessIOPriority` enum members
      (previously ``IOPriority`` enum).
+     See :ref:`migration guide <migration-8.0>`.
 
 .. data:: IOPRIO_VERYLOW
 .. data:: IOPRIO_LOW
@@ -2820,6 +2829,7 @@ Process priority constants
   .. versionchanged:: 8.0.0
      constants are now :class:`psutil.ProcessIOPriority` enum members
      (previously ``IOPriority`` enum).
+     See :ref:`migration guide <migration-8.0>`.
 
 Process resource constants
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2867,6 +2877,7 @@ These constants are members of the :class:`psutil.ProcessRlimit` enum.
 .. versionchanged:: 8.0.0
    constants are now :class:`psutil.ProcessRlimit` enum members (were plain
    integers).
+   See :ref:`migration guide <migration-8.0>`.
 
 Connections constants
 ^^^^^^^^^^^^^^^^^^^^^
@@ -2896,6 +2907,7 @@ Connections constants
   .. versionchanged:: 8.0.0
      constants are now :class:`psutil.ConnectionStatus` enum members (were
      plain strings).
+     See :ref:`migration guide <migration-8.0>`.
 
 Hardware constants
 ^^^^^^^^^^^^^^^^^^
@@ -2977,43 +2989,6 @@ Other constants
 .. _`mallinfo2`: https://man7.org/linux/man-pages/man3/mallinfo.3.html
 .. _`man prlimit`: https://linux.die.net/man/2/prlimit
 .. _`psleak`: https://github.com/giampaolo/psleak
-
-.. === docs.python.org
-
-.. _`AF_INET6`: https://docs.python.org/3/library/socket.html#socket.AF_INET6
-.. _`AF_INET`: https://docs.python.org/3/library/socket.html#socket.AF_INET
-.. _`AF_UNIX`: https://docs.python.org/3/library/socket.html#socket.AF_UNIX
-.. _`enum.IntEnum`: https://docs.python.org/3/library/enum.html#enum.IntEnum
-.. _`enum.StrEnum`: https://docs.python.org/3/library/enum.html#enum.StrEnum
-.. _`enum`: https://docs.python.org/3/library/enum.html#module-enum
-.. _`hash`: https://docs.python.org/3/library/functions.html#hash
-.. _`open`: https://docs.python.org/3/library/functions.html#open
-.. _`os.cpu_count`: https://docs.python.org/3/library/os.html#os.cpu_count
-.. _`os.getloadavg`: https://docs.python.org//library/os.html#os.getloadavg
-.. _`os.getpid`: https://docs.python.org/3/library/os.html#os.getpid
-.. _`os.getpriority`: https://docs.python.org/3/library/os.html#os.getpriority
-.. _`os.getresgid`: https://docs.python.org//library/os.html#os.getresgid
-.. _`os.getresuid`: https://docs.python.org//library/os.html#os.getresuid
-.. _`os.O_RDONLY`: https://docs.python.org/3/library/os.html#os.O_RDONLY
-.. _`os.O_TRUNC`: https://docs.python.org/3/library/os.html#os.O_TRUNC
-.. _`os.open`: https://docs.python.org/3/library/os.html#os.open
-.. _`os.pidfd_open`: https://docs.python.org//library/os.html#os.pidfd_open
-.. _`os.setpriority`: https://docs.python.org/3/library/os.html#os.setpriority
-.. _`os.times`: https://docs.python.org//library/os.html#os.times
-.. _`resource.getrlimit`: https://docs.python.org/3/library/resource.html#resource.getrlimit
-.. _`resource.setrlimit`: https://docs.python.org/3/library/resource.html#resource.setrlimit
-.. _`select.kqueue`: https://docs.python.org//library/select.html#select.kqueue
-.. _`select.poll`: https://docs.python.org//library/select.html#select.poll
-.. _`set`: https://docs.python.org/3/library/stdtypes.html#types-set
-.. _`shutil.disk_usage`: https://docs.python.org/3/library/shutil.html#shutil.disk_usage
-.. _`signal module`: https://docs.python.org//library/signal.html
-.. _`SOCK_DGRAM`: https://docs.python.org/3/library/socket.html#socket.SOCK_DGRAM
-.. _`SOCK_SEQPACKET`: https://docs.python.org/3/library/socket.html#socket.SOCK_SEQPACKET
-.. _`SOCK_STREAM`: https://docs.python.org/3/library/socket.html#socket.SOCK_STREAM
-.. _`socket.fromfd`: https://docs.python.org/3/library/socket.html#socket.fromfd
-.. _`subprocess.Popen`: https://docs.python.org/3/library/subprocess.html#subprocess.Popen
-.. _`threading.get_ident`: https://docs.python.org/3/library/threading.html#threading.get_ident
-.. _`threading.Thread`: https://docs.python.org/3/library/threading.html#threading.Thread
 
 .. === scripts
 
