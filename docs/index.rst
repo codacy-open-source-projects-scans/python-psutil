@@ -2,7 +2,7 @@
    :synopsis: psutil module
 .. moduleauthor:: Giampaolo Rodola <grodola@gmail.com>
 
-Psutil documentation
+psutil documentation
 ====================
 
 .. image:: https://img.shields.io/badge/GitHub-repo-blue
@@ -90,7 +90,7 @@ Security
 To report a security vulnerability, please use the `Tidelift security contact`_.
 Tidelift will coordinate the fix and disclosure.
 
-Table of Contents
+Table of contents
 -----------------
 
 .. toctree::
@@ -101,12 +101,13 @@ Table of Contents
    FAQ <faq>
    Recipes <recipes>
    Shell equivalents <shell_equivalents>
+   Glossary <glossary>
    Platform support <platform>
    Who uses psutil <adoption>
-   Glossary <glossary>
-   Credits <credits>
-   Development guide <devguide>
+   Alternatives <alternatives>
    Migration <migration>
+   Development guide <devguide>
+   Credits <credits>
    Timeline <timeline>
 
 .. toctree::
