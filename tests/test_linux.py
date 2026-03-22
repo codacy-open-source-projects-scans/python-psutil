@@ -324,6 +324,32 @@ class TestSystemVirtualMemoryAgainstVmstat(LinuxTestCase):
         assert abs(vmstat_value - psutil_value) < TOLERANCE_SYS_MEM
 
 
+class TestSystemVirtualMemoryAgainstMeminfo(LinuxTestCase):
+    @staticmethod
+    def read_meminfo():
+        mems = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                fields = line.split()
+                if len(fields) >= 2:
+                    mems[fields[0]] = int(fields[1]) * 1024
+        return mems
+
+    @retry_on_failure()
+    def test_buffers(self):
+        proc_value = self.read_meminfo()["Buffers:"]
+        psutil_value = psutil.virtual_memory().buffers
+        assert abs(psutil_value - proc_value) < TOLERANCE_SYS_MEM
+
+    @retry_on_failure()
+    def test_cached(self):
+        # psutil cached = Cached + SReclaimable
+        mems = self.read_meminfo()
+        proc_value = mems["Cached:"] + mems.get("SReclaimable:", 0)
+        psutil_value = psutil.virtual_memory().cached
+        assert abs(psutil_value - proc_value) < TOLERANCE_SYS_MEM
+
+
 class TestSystemVirtualMemoryMocks(LinuxTestCase):
     def test_warnings_on_misses(self):
         # Emulate a case where /proc/meminfo provides few info.
@@ -554,6 +580,19 @@ class TestSystemSwapMemory(LinuxTestCase):
         free_value = free_swap().free
         psutil_value = psutil.swap_memory().free
         assert abs(free_value - psutil_value) < TOLERANCE_SYS_MEM
+
+    @retry_on_failure()
+    def test_sin_sout(self):
+        # Cross-check sin/sout against /proc/vmstat pswpin/pswpout fields.
+        # psutil converts pages to bytes using a 4096-byte page size.
+        PAGE_SIZE = 4 * 1024
+        with open("/proc/vmstat") as f:
+            vmstat = dict(line.split() for line in f if line.split())
+        sin = int(vmstat["pswpin"]) * PAGE_SIZE
+        sout = int(vmstat["pswpout"]) * PAGE_SIZE
+        swap = psutil.swap_memory()
+        assert swap.sin == sin
+        assert swap.sout == sout
 
     def test_missing_sin_sout(self):
         with mock.patch('psutil._common.open', create=True) as m:
@@ -877,6 +916,26 @@ class TestSystemCPUFrequency(LinuxTestCase):
                     assert freq.current == 200
 
 
+class TestSystemCPUTimes(LinuxTestCase):
+
+    @retry_on_failure()
+    def test_against_proc_stat(self):
+        with open("/proc/stat") as f:
+            line = f.readline()
+        ticks = [float(x) for x in line.split()[1:]]
+        fields = [t / CLOCK_TICKS for t in ticks]
+        ct = psutil.cpu_times()
+        TOLERANCE = 1  # 1 second
+        assert abs(ct.user - fields[0]) < TOLERANCE
+        assert abs(ct.nice - fields[1]) < TOLERANCE
+        assert abs(ct.system - fields[2]) < TOLERANCE
+        assert abs(ct.idle - fields[3]) < TOLERANCE
+        assert abs(ct.iowait - fields[4]) < TOLERANCE
+        assert abs(ct.irq - fields[5]) < TOLERANCE
+        assert abs(ct.softirq - fields[6]) < TOLERANCE
+        assert abs(ct.steal - fields[7]) < TOLERANCE
+
+
 class TestSystemCPUStats(LinuxTestCase):
 
     # XXX: fails too often.
@@ -1136,6 +1195,30 @@ class TestSystemNetConnections(LinuxTestCase):
             psutil.net_connections(kind='unix')
             assert m.called
 
+    @pytest.mark.skipif(
+        not shutil.which("ss"), reason="'ss' command not available"
+    )
+    def test_against_ss(self):
+        # Listening ports are stable, so an exact set comparison is
+        # reliable.
+        out = sh(["ss", "-tuanp"])
+        ss_ports = set()
+        for line in out.splitlines():
+            fields = line.split()
+            if (
+                len(fields) >= 5
+                and fields[0] == "tcp"
+                and fields[1] == "LISTEN"
+            ):
+                port = int(fields[4].rsplit(":", 1)[-1])
+                ss_ports.add(port)
+        psutil_ports = {
+            c.laddr.port
+            for c in psutil.net_connections(kind="tcp")
+            if c.status == psutil.CONN_LISTEN
+        }
+        assert ss_ports == psutil_ports
+
 
 # =====================================================================
 # --- system disks
@@ -1338,6 +1421,35 @@ class TestSystemDiskIoCounters(LinuxTestCase):
         ):
             with pytest.raises(NotImplementedError):
                 psutil.disk_io_counters()
+
+    @pytest.mark.skipif(
+        not shutil.which("iostat"), reason="'iostat' command not available"
+    )
+    @retry_on_failure()
+    def test_against_iostat(self):
+        # Cross-check read_bytes/write_bytes against 'iostat -d -k'
+        # cumulative totals (kB_read, kB_wrtn columns).
+        out = sh(["iostat", "-d", "-k"])
+        iostat_disks = {}
+        for line in out.splitlines():
+            fields = line.split()
+            if len(fields) < 7 or fields[0] in {"Linux", "Device"}:
+                continue
+            name = fields[0]
+            try:
+                kb_read = int(fields[5])
+                kb_wrtn = int(fields[6])
+            except ValueError:
+                continue
+            iostat_disks[name] = (kb_read * 1024, kb_wrtn * 1024)
+
+        psutil_disks = psutil.disk_io_counters(perdisk=True, nowrap=False)
+        for name, (bytes_read, bytes_wrtn) in iostat_disks.items():
+            if name not in psutil_disks:
+                continue
+            stats = psutil_disks[name]
+            assert abs(stats.read_bytes - bytes_read) < 1024 * 1024
+            assert abs(stats.write_bytes - bytes_wrtn) < 1024 * 1024
 
 
 class TestRootFsDeviceFinder(LinuxTestCase):

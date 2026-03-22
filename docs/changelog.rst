@@ -15,7 +15,7 @@ Changelog
 
 Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
 :gh:`2764`, :gh:`2767`, :gh:`2768`, :gh:`2769`, :gh:`2771`, :gh:`2774`,
-:gh:`2775`)
+:gh:`2775`, :gh:`2781`)
 
 - Split docs from a single HTML file into multiple sections (API reference,
   install, etc.).
@@ -28,8 +28,11 @@ Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
     notable software using psutil
   - `/glossary <https://psutil.readthedocs.io/en/latest/glossary.html>`__:
     a section explaining the core concepts
-  - `/shell_equivalents <https://psutil.readthedocs.io/en/latest/shell_equivalents.html>`__:
+  - `/shell-equivalents <https://psutil.readthedocs.io/en/latest/shell-equivalents.html>`__:
     maps each psutil API to native CLI commands
+  - `/stdlib-equivalents <https://psutil.readthedocs.io/en/latest/stdlib-equivalents.html>`__:
+    maps psutil's Python API to the closest equivalent in the Python standard
+    library.
   - `/install <https://psutil.readthedocs.io/en/latest/install.html>`__
     (was old ``INSTALL.rst`` in root dir)
   - `/credits <https://psutil.readthedocs.io/en/latest/credits.html>`__:
@@ -132,8 +135,10 @@ Others
   ``irq`` to match the field name used on Linux and BSD. ``interrupt`` still
   works but raises :exc:`DeprecationWarning`.
   See :ref:`migration guide <migration-8.0>`.
-- :gh:`2776`: Windows: :func:`virtual_memory` now includes ``cached`` and
+- :gh:`2776`, [Windows]: :func:`virtual_memory` now includes ``cached`` and
   ``wired`` fields.
+- :gh:`2780`, [Windows]: :func:`disk_usage` now can accept a file path (not
+  only a directory path).
 
 **Bug fixes**
 
@@ -151,6 +156,12 @@ Others
 - :gh:`2746`, [FreeBSD]: :meth:`Process.memory_maps`, `rss` and `private`
   fields, are erroneously reported in memory pages instead of bytes. Other
   platforms (Linux, macOS, Windows) return bytes.
+- :gh:`2778`, [UNIX]: :func:`net_if_addrs` skips interfaces with no addresses,
+  which are typically virtual IPv4/IPv6 tunnel interfaces. Now they are
+  included in the returned dict with family == ``AF_UNSPEC`` and an empty list
+  of addresses. Main reason: it creates an inconsistency with
+  :func:`net_io_counters` and :func:`net_if_stats` which do return these
+  interface names.
 
 7.2.3 — 2026-02-08
 ^^^^^^^^^^^^^^^^^^

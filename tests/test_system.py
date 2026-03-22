@@ -678,11 +678,14 @@ class TestDiskAPIs(PsutilTestCase):
             # see https://github.com/giampaolo/psutil/issues/2147
             assert abs(usage.used - shutil_usage.used) < tolerance
 
-        # if path does not exist OSError ENOENT is expected across
+        # if path does not exist FileNotFoundError is expected across
         # all platforms
         fname = self.get_testfn()
         with pytest.raises(FileNotFoundError):
             psutil.disk_usage(fname)
+
+        # we should also be able to use a file path
+        psutil.disk_usage(__file__)
 
     @pytest.mark.skipif(not ASCII_FS, reason="not an ASCII fs")
     def test_disk_usage_unicode(self):
@@ -849,13 +852,20 @@ class TestNetAPIs(PsutilTestCase):
         #     psutil.net_io_counters(pernic=True).keys()
         # )
 
-        families = {socket.AF_INET, socket.AF_INET6, psutil.AF_LINK}
+        families = {
+            socket.AF_INET,
+            socket.AF_INET6,
+            socket.AF_UNSPEC,
+            psutil.AF_LINK,
+        }
         for nic, addrs in nics.items():
             assert isinstance(nic, str)
             assert len(set(addrs)) == len(addrs)
             for addr in addrs:
                 assert isinstance(addr.family, int)
-                assert isinstance(addr.address, str)
+                assert isinstance(addr.address, (str, type(None)))
+                if addr.address is None:  # virtual NIC
+                    assert addr.family == socket.AF_UNSPEC
                 assert isinstance(addr.netmask, (str, type(None)))
                 assert isinstance(addr.broadcast, (str, type(None)))
                 assert addr.family in families
@@ -960,6 +970,13 @@ class TestNetAPIs(PsutilTestCase):
             ret = psutil.net_if_stats()
             assert ret == {}
             assert m.called
+
+    @pytest.mark.skipif(not POSIX, reason="POSIX only")
+    def test_nic_names(self):
+        stdlib_names = {name for _, name in socket.if_nameindex()}
+        assert stdlib_names == set(psutil.net_io_counters(pernic=True).keys())
+        assert stdlib_names == set(psutil.net_if_addrs().keys())
+        assert stdlib_names == set(psutil.net_if_stats().keys())
 
 
 class TestSensorsAPIs(PsutilTestCase):
