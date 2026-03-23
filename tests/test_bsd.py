@@ -30,13 +30,7 @@ from . import sh
 from . import spawn_subproc
 from . import terminate
 
-if BSD:
-    PAGESIZE = psutil._psplatform.cext.getpagesize()
-    # muse requires root privileges
-    MUSE_AVAILABLE = os.getuid() == 0 and shutil.which("muse")
-else:
-    PAGESIZE = None
-    MUSE_AVAILABLE = False
+PAGESIZE = psutil._psplatform.cext.getpagesize() if BSD else None
 
 
 def sysctl(cmdline):
@@ -54,43 +48,14 @@ def sysctl(cmdline):
         return result
 
 
-def muse(field):
-    """Thin wrapper around 'muse' cmdline utility."""
-    out = sh('muse')
-    for line in out.split('\n'):
-        if line.startswith(field):
-            break
-    else:
-        raise ValueError("line not found")
-    return int(line.split()[1])
-
-
 # =====================================================================
 # --- All BSD*
 # =====================================================================
 
 
 @pytest.mark.skipif(not BSD, reason="BSD only")
-class BSDTestCase(PsutilTestCase):
-    """Generic tests common to all BSD variants."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.pid = spawn_subproc().pid
-
-    @classmethod
-    def tearDownClass(cls):
-        terminate(cls.pid)
-
-    @pytest.mark.skipif(NETBSD, reason="-o lstart doesn't work on NETBSD")
-    def test_process_create_time(self):
-        output = sh(f"ps -o lstart -p {self.pid}")
-        start_ps = output.replace('STARTED', '').strip()
-        start_psutil = psutil.Process(self.pid).create_time()
-        start_psutil = time.strftime(
-            "%a %b %e %H:%M:%S %Y", time.localtime(start_psutil)
-        )
-        assert start_ps == start_psutil
+class TestSystemAPIs(PsutilTestCase):
+    """System tests common to all BSD variants."""
 
     def test_disks(self):
         # test psutil.disk_usage() and psutil.disk_partitions()
@@ -151,13 +116,35 @@ class BSDTestCase(PsutilTestCase):
                     assert stats.mtu == int(re.findall(r'mtu (\d+)', out)[0])
 
 
+@pytest.mark.skipif(not BSD, reason="BSD only")
+class TestProcessAPIs(PsutilTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pid = spawn_subproc().pid
+
+    @classmethod
+    def tearDownClass(cls):
+        terminate(cls.pid)
+
+    @pytest.mark.skipif(NETBSD, reason="-o lstart doesn't work on NETBSD")
+    def test_create_time(self):
+        output = sh(f"ps -o lstart -p {self.pid}")
+        start_ps = output.replace('STARTED', '').strip()
+        start_psutil = psutil.Process(self.pid).create_time()
+        start_psutil = time.strftime(
+            "%a %b %e %H:%M:%S %Y", time.localtime(start_psutil)
+        )
+        assert start_ps == start_psutil
+
+
 # =====================================================================
 # --- FreeBSD
 # =====================================================================
 
 
 @pytest.mark.skipif(not FREEBSD, reason="FREEBSD only")
-class FreeBSDTestCase(PsutilTestCase):
+class FreeBSDProcessTestCase(PsutilTestCase):
     @classmethod
     def setUpClass(cls):
         cls.pid = spawn_subproc().pid
@@ -260,6 +247,22 @@ class FreeBSDSystemTestCase(PsutilTestCase):
         total, used, free = (int(p) * 1024 for p in parts[1:4])
         return total, used, free
 
+    def test_cpu_count_cores(self):
+        cores = sysctl("kern.smp.cores")
+        assert psutil.cpu_count(logical=False) == cores
+
+    @retry_on_failure()
+    def test_cpu_times(self):
+        clk_tck = os.sysconf("SC_CLK_TCK")
+        ticks = [int(x) for x in sysctl("kern.cp_time").split()]
+        ct = psutil.cpu_times()
+        tolerance = 0.5
+        assert abs(ct.user - ticks[0] / clk_tck) < tolerance
+        assert abs(ct.nice - ticks[1] / clk_tck) < tolerance
+        assert abs(ct.system - ticks[2] / clk_tck) < tolerance
+        assert abs(ct.irq - ticks[3] / clk_tck) < tolerance
+        assert abs(ct.idle - ticks[4] / clk_tck) < tolerance
+
     def test_cpu_frequency_against_sysctl(self):
         # Currently only cpu 0 is frequency is supported in FreeBSD
         # All other cores use the same frequency.
@@ -312,49 +315,6 @@ class FreeBSDSystemTestCase(PsutilTestCase):
         syst = sysctl("vfs.bufspace")
         assert abs(psutil.virtual_memory().buffers - syst) < TOLERANCE_SYS_MEM
 
-    # --- virtual_memory(); tests against muse
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    def test_muse_vmem_total(self):
-        num = muse('Total')
-        assert psutil.virtual_memory().total == num
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_active(self):
-        num = muse('Active')
-        assert abs(psutil.virtual_memory().active - num) < TOLERANCE_SYS_MEM
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_inactive(self):
-        num = muse('Inactive')
-        assert abs(psutil.virtual_memory().inactive - num) < TOLERANCE_SYS_MEM
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_wired(self):
-        num = muse('Wired')
-        assert abs(psutil.virtual_memory().wired - num) < TOLERANCE_SYS_MEM
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_cached(self):
-        num = muse('Cache')
-        assert abs(psutil.virtual_memory().cached - num) < TOLERANCE_SYS_MEM
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_free(self):
-        num = muse('Free')
-        assert abs(psutil.virtual_memory().free - num) < TOLERANCE_SYS_MEM
-
-    @pytest.mark.skipif(not MUSE_AVAILABLE, reason="muse not installed")
-    @retry_on_failure()
-    def test_muse_vmem_buffers(self):
-        num = muse('Buffer')
-        assert abs(psutil.virtual_memory().buffers - num) < TOLERANCE_SYS_MEM
-
     def test_cpu_stats_ctx_switches(self):
         assert (
             abs(
@@ -400,6 +360,25 @@ class FreeBSDSystemTestCase(PsutilTestCase):
     def test_swapmem_total(self):
         total, _used, _free = self.parse_swapinfo()
         assert abs(psutil.swap_memory().total - total) < TOLERANCE_SYS_MEM
+
+    # --- net
+
+    @retry_on_failure()
+    def test_net_io_counters(self):
+        out = sh("netstat -ib")
+        netstat = {}
+        for line in out.splitlines():
+            fields = line.split()
+            if len(fields) == 12 and "<Link#" in fields[2]:
+                name = fields[0]
+                netstat[name] = (int(fields[7]), int(fields[10]))
+        ps = psutil.net_io_counters(pernic=True)
+        tolerance = 1 * 1024 * 1024  # 1 MB
+        for name, (ibytes, obytes) in netstat.items():
+            if name not in ps:
+                continue
+            assert abs(ps[name].bytes_recv - ibytes) < tolerance
+            assert abs(ps[name].bytes_sent - obytes) < tolerance
 
     # --- others
 
