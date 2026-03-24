@@ -1010,7 +1010,7 @@ Functions
 
   Return a sorted list of current running PIDs.
   To iterate over all processes and avoid race conditions :func:`process_iter`
-  should be preferred.
+  should be preferred, see :ref:`performance section <perf-pids>`.
 
   .. code-block:: pycon
 
@@ -1034,33 +1034,45 @@ Functions
   Cache can optionally be cleared via ``process_iter.cache_clear()``.
 
   *attrs* and *ad_value* have the same meaning as in :meth:`Process.as_dict`.
-  If *attrs* is specified :meth:`Process.as_dict` result will be stored as a
-  ``info`` attribute attached to the returned :class:`Process` instances.
-  If *attrs* is an empty list it will retrieve all process info (slow).
+  If *attrs* is specified, :meth:`Process.as_dict` is called internally and
+  the results are cached so that subsequent method calls (e.g.
+  :meth:`Process.name`, :meth:`Process.status`) return the cached values
+  instead of issuing new system calls.
+  If a method raises :exc:`AccessDenied` during pre-fetch, it will return
+  *ad_value* (default ``None``) instead of raising. If *attrs* is an empty list
+  it will retrieve all process info (slow).
 
-  Sorting order in which processes are returned is based on their PID.
+  Processes are returned sorted by PID.
+
+  .. seealso:: :ref:`perf-process-iter`
+
+  .. note::
+
+    Since :class:`Process` instances are reused across calls, a subsequent
+    :func:`process_iter` call will overwrite or clear any previously
+    pre-fetched values. Do not rely on cached values from a prior iteration.
 
   .. code-block:: pycon
 
      >>> import psutil
      >>> for proc in psutil.process_iter(['pid', 'name', 'username']):
-     ...     print(proc.info)
+     ...     print(proc.pid, proc.name(), proc.username())
      ...
-     {'name': 'systemd', 'pid': 1, 'username': 'root'}
-     {'name': 'kthreadd', 'pid': 2, 'username': 'root'}
-     {'name': 'ksoftirqd/0', 'pid': 3, 'username': 'root'}
+     1 systemd root
+     2 kthreadd root
+     3 ksoftirqd/0 root
      ...
 
-  A dict comprehensions to create a ``{pid: info, ...}`` data structure:
+  A dict comprehension to create a ``{pid: name, ...}`` data structure:
 
   .. code-block:: pycon
 
      >>> import psutil
-     >>> procs = {p.pid: p.info for p in psutil.process_iter(['name', 'username'])}
+     >>> procs = {p.pid: p.name() for p in psutil.process_iter(['name'])}
      >>> procs
-     {1: {'name': 'systemd', 'username': 'root'},
-      2: {'name': 'kthreadd', 'username': 'root'},
-      3: {'name': 'ksoftirqd/0', 'username': 'root'},
+     {1: 'systemd',
+      2: 'kthreadd',
+      3: 'ksoftirqd/0',
       ...}
 
   Clear internal cache:
@@ -1077,6 +1089,13 @@ Functions
 
   .. versionchanged:: 6.0.0
      added ``psutil.process_iter.cache_clear()`` API.
+
+  .. versionchanged:: 8.0.0
+     when *attrs* is specified, the pre-fetched values are cached
+     directly on the :class:`Process` instance so that subsequent
+     method calls (e.g. ``p.name()``, ``p.status()``) return the
+     cached values instead of making new system calls. The :attr:`Process.info`
+     dict is deprecated in favor of this new approach.
 
 .. function:: pid_exists(pid)
 
@@ -1201,18 +1220,22 @@ Process class
   .. method:: oneshot()
 
     Utility context manager which considerably speeds up the retrieval of
-    multiple process information at the same time.
+    multiple process attributes at the same time.
     Internally different process info (e.g. :meth:`name`, :meth:`ppid`,
     :meth:`uids`, :meth:`create_time`, ...) may be fetched by using the same
     routine, but only one value is returned and the others are discarded.
     When using this context manager the internal routine is executed once (in
-    the example below on :meth:`name`) the value of interest is returned and
+    the example below on :meth:`name`); the value of interest is returned and
     the others are cached.
     The subsequent calls sharing the same internal routine will return the
     cached value.
     The cache is cleared when exiting the context manager block.
-    The advice is to use this every time you retrieve more than one information
+    The advice is to use this every time you retrieve more than one attribute
     about the process. If you're lucky, you'll get a hell of a speedup.
+
+    .. seealso::
+      - :ref:`perf-oneshot`
+      - :ref:`perf-oneshot-bench`
 
     .. code-block:: pycon
 
@@ -1230,10 +1253,13 @@ Process class
 
     Here's a list of methods which can take advantage of the speedup depending
     on what platform you're on.
-    In the table below horizontal empty rows indicate what process methods can
-    be efficiently grouped together internally.
+    Empty rows indicate methods that are grouped together internally (i.e.
+    they share the same system call).
     The last column (speedup) shows an approximation of the speedup you can get
-    if you call all the methods together (best case scenario).
+    if you call all the methods together (best case scenario). It was
+    calculated via
+    `bench_oneshot.py <https://github.com/giampaolo/psutil/blob/master/scripts/internal/bench_oneshot.py>`_
+    script.
 
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
     | Linux                        | Windows                       | macOS                        | BSD                          | SunOS                    | AIX                      |
@@ -1248,33 +1274,35 @@ Process class
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
     | :meth:`name`                 | :meth:`memory_info_ex`        | :meth:`num_ctx_switches`     | :meth:`gids`                 | :meth:`memory_info`      | :meth:`memory_info`      |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`ppid`                 | :meth:`num_ctx_switches`      | :meth:`num_threads`          | :meth:`io_counters`          | :meth:`memory_percent`   | :meth:`memory_percent`   |
+    | :meth:`page_faults`          | :meth:`num_ctx_switches`      | :meth:`num_threads`          | :meth:`io_counters`          | :meth:`memory_percent`   | :meth:`memory_percent`   |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`status`               | :meth:`num_handles`           |                              | :meth:`name`                 | :meth:`num_threads`      | :meth:`num_threads`      |
+    | :meth:`ppid`                 | :meth:`num_handles`           |                              | :meth:`name`                 | :meth:`num_threads`      | :meth:`num_threads`      |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`terminal`             | :meth:`num_threads`           | :meth:`create_time`          | :meth:`memory_info`          | :meth:`ppid`             | :meth:`ppid`             |
+    | :meth:`status`               | :meth:`num_threads`           | :meth:`create_time`          | :meth:`memory_info`          | :meth:`ppid`             | :meth:`ppid`             |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    |                              |                               | :meth:`gids`                 | :meth:`memory_percent`       | :meth:`status`           | :meth:`status`           |
+    | :meth:`terminal`             |                               | :meth:`gids`                 | :meth:`memory_percent`       | :meth:`status`           | :meth:`status`           |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`gids`                 | :meth:`exe`                   | :meth:`name`                 | :meth:`num_ctx_switches`     | :meth:`terminal`         | :meth:`terminal`         |
+    |                              | :meth:`exe`                   | :meth:`name`                 | :meth:`num_ctx_switches`     | :meth:`terminal`         | :meth:`terminal`         |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`memory_info_ex`       | :meth:`name`                  | :meth:`ppid`                 | :meth:`ppid`                 |                          |                          |
+    | :meth:`gids`                 | :meth:`name`                  | :meth:`ppid`                 | :meth:`ppid`                 |                          |                          |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`num_ctx_switches`     |                               | :meth:`status`               | :meth:`status`               | :meth:`gids`             | :meth:`gids`             |
+    | :meth:`memory_info_ex`       |                               | :meth:`status`               | :meth:`status`               | :meth:`gids`             | :meth:`gids`             |
+    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
+    | :meth:`num_ctx_switches`     |                               | :meth:`terminal`             | :meth:`terminal`             | :meth:`uids`             | :meth:`uids`             |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
     | :meth:`num_threads`          |                               | :meth:`terminal`             | :meth:`terminal`             | :meth:`uids`             | :meth:`uids`             |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`uids`                 |                               | :meth:`terminal`             | :meth:`terminal`             | :meth:`uids`             | :meth:`uids`             |
+    | :meth:`uids`                 |                               | :meth:`uids`                 | :meth:`uids`                 | :meth:`username`         | :meth:`username`         |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`username`             |                               | :meth:`uids`                 | :meth:`uids`                 | :meth:`username`         | :meth:`username`         |
+    | :meth:`username`             |                               | :meth:`username`             | :meth:`username`             |                          |                          |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    |                              |                               | :meth:`username`             | :meth:`username`             |                          |                          |
+    |                              |                               |                              |                              |                          |                          |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
     | :meth:`memory_footprint`     |                               |                              |                              |                          |                          |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
     | :meth:`memory_maps`          |                               |                              |                              |                          |                          |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | *speedup: +2.6x*             | *speedup: +1.8x / +6.5x*      | *speedup: +1.9x*             | *speedup: +2.0x*             | *speedup: +1.3x*         | *speedup: +1.3x*         |
+    | *speedup: +1.8x*             | *speedup: +1.8x / +6.5x*      | *speedup: +1.9x*             | *speedup: +2.0x*             | *speedup: +1.3x*         | *speedup: +1.3x*         |
     +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
 
     .. versionadded:: 5.0.0
@@ -1282,6 +1310,15 @@ Process class
   .. attribute:: pid
 
      The process PID. This is the only (read-only) attribute of the class.
+
+  .. attribute:: info
+
+     A dict containing pre-fetched process info, set by
+     :func:`process_iter` when called with ``attrs``. Use method
+     calls instead (e.g. ``p.name()`` instead of ``p.info['name']``).
+     Accessing this attribute raises :exc:`DeprecationWarning`.
+
+     .. deprecated:: 8.0.0
 
   .. method:: ppid()
 
