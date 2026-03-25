@@ -14,7 +14,7 @@ Changelog
 
 Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
 :gh:`2764`, :gh:`2767`, :gh:`2768`, :gh:`2769`, :gh:`2771`, :gh:`2774`,
-:gh:`2775`, :gh:`2781`, :gh:`2787`)
+:gh:`2775`, :gh:`2781`, :gh:`2787`, :gh:`2739`)
 
 - Split docs from a single HTML file into multiple sections (API reference,
   install, etc.).
@@ -38,15 +38,22 @@ Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
 
   - Show a clickable COPY button to copy code snippets.
   - Show ``psutil.`` prefix for all APIs.
+  - Greatly improved :func:`virtual_memory` doc and many other APIs.
 
 - Testing:
 
   - Replace ``rstcheck`` with ``sphinx-lint`` for RST linting.
   - Add custom script to detect dead reference links in ``.rst`` files.
-  - Build doc as part of CI process.
   - Use sphinx extension to validate Python code snippets syntax at build-time.
 
-- Greatly improved :func:`virtual_memory` doc.
+- Build / RTD:
+
+  - Configured RTD to automatically public doc from Git tags, instead of from
+    main on every push.
+  - Build doc as part of CI process (CI fails on error).
+  - Removed /en language from RTD URLs. Turn that into a redirect.
+    - Before: https://psutil.readthedocs.io/en/stable/
+    - Now: https://psutil.readthedocs.io/stable/
 
 Type hints / enums:
 
@@ -131,6 +138,9 @@ Others
   method calls (e.g. ``p.name()``, ``p.status()``) return the cached values
   instead of making new system calls. The ``p.info`` dict is deprecated. See
   :ref:`migration guide <migration-8.0>`.
+- :gh:`2788`: git tags renamed from ``release-X.Y.Z`` to ``vX.Y.Z`` (e.g.
+  ``release-7.2.2`` → ``v7.2.2``). Old tags are kept for backward
+  compatibility.
 
 **Bug fixes**
 
