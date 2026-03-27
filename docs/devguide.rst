@@ -1,8 +1,8 @@
 Development guide
 =================
 
-Build, setup and running tests
-------------------------------
+Build, setup and test
+---------------------
 
 - psutil makes extensive use of C extension modules, meaning a C compiler is
   required, see :doc:`install instructions <install>`. Once you have a compiler
@@ -10,35 +10,35 @@ Build, setup and running tests
 
   .. code-block:: bash
 
-      git clone git@github.com:giampaolo/psutil.git
-      make install-sysdeps      # install gcc and python headers
-      make install-pydeps-test  # install python deps necessary to run unit tests
-      make build
-      make install
-      make test
+     git clone git@github.com:giampaolo/psutil.git
+     make install-sysdeps      # install gcc and python headers
+     make install-pydeps-test  # install python deps necessary to run unit tests
+     make build
+     make install
+     make test
 
-- ``make`` (and the accompanying `Makefile`_) is the designated tool to build,
-  install, run tests and do pretty much anything that involves development,
-  including on Windows. Some useful commands:
+- ``make`` (and the accompanying `Makefile`_) is the designated tool for
+  building, installing, running tests, and general development tasks,
+  including on Windows (see later).
 
   .. code-block:: bash
 
-      make clean                # remove build files
-      make install-pydeps-dev   # install all development deps (ruff, black, coverage, ...)
-      make test                 # run tests
-      make test-parallel        # run tests in parallel (faster)
-      make test-memleaks        # run memory leak tests
-      make test-coverage        # run test coverage
-      make lint-all             # run linters
-      make fix-all              # fix linters errors
-      make uninstall
-      make help
+     make clean                # remove build files
+     make install-pydeps-dev   # install all development deps (ruff, black, coverage, ...)
+     make test                 # run tests
+     make test-parallel        # run tests in parallel (faster)
+     make test-memleaks        # run memory leak tests
+     make test-coverage        # run test coverage
+     make lint-all             # run linters
+     make fix-all              # fix linters errors
+     make uninstall
+     make help
 
 - To run a specific unit test:
 
-  .. code-block::
+  .. code-block:: none
 
-      make test ARGS=tests/test_system.py
+     make test ARGS=tests/test_system.py
 
 - Do not use ``sudo``. ``make install`` installs psutil as a limited user in
   "edit" / development mode, meaning you can edit psutil code on the fly while
@@ -46,41 +46,43 @@ Build, setup and running tests
 
 - If you want to target a specific Python version:
 
-  .. code-block::
+  .. code-block:: none
 
-      make test PYTHON=python3.8
+     make test PYTHON=python3.8
 
 Windows
 -------
 
-- The recommended way to develop on Windows is using ``make``, just like on
-  UNIX systems.
+- The recommended way to develop on Windows is to use ``make``, just like
+  on UNIX systems.
 - First, install `Git for Windows`_ and launch a **Git Bash shell**. This
   provides a Unix-like environment where ``make`` works.
 - Once inside Git Bash, you can run the usual ``make`` commands:
 
   .. code-block:: bash
 
-      make build
-      make test-parallel
+     make build
+     make test-parallel
+
+.. _devguide_debug_mode:
 
 Debug mode
 ----------
 
-If you want to debug unusual situations or want to report a bug, it may be
-useful to enable debug mode via ``PSUTIL_DEBUG`` environment variable. In this
+If you need to debug unusual situations or report a bug, you can enable
+debug mode via the ``PSUTIL_DEBUG`` environment variable. In this
 mode, psutil may print additional information to stderr. Usually these are
 non-severe error conditions that are ignored instead of causing a crash.
 Unit tests automatically run with debug mode enabled. On UNIX:
 
-::
+.. code-block:: none
 
   $ PSUTIL_DEBUG=1 python3 script.py
   psutil-debug [psutil/_psutil_linux.c:150]> setmntent() failed (ignored)
 
 On Windows:
 
-::
+.. code-block:: none
 
   set PSUTIL_DEBUG=1 && python.exe script.py
   psutil-debug [psutil/arch/windows/proc.c:90]> NtWow64ReadVirtualMemory64(pbi64.PebBaseAddress) -> 998 (Unknown error) (ignored)
@@ -106,16 +108,16 @@ Code organization
 
 .. code-block:: bash
 
-    psutil/__init__.py                   # Main API namespace ("import psutil")
-    psutil/_common.py                    # Generic utilities
-    psutil/_ntuples.py                   # Named tuples returned by psutil APIs
-    psutil/_enums.py                     # Enum containers backing psutil constants
-    psutil/_ps{platform}.py              # Platform-specific python wrappers
-    psutil/_psutil_{platform}.c          # Platform-specific C extensions (entry point)
-    psutil/arch/all/*.c                  # C code common to all platforms
-    psutil/arch/{platform}/*.c           # Platform-specific C extension
-    tests/test_process|system.py         # Main system/process API tests
-    tests/test_{platform}.py             # Platform-specific tests
+   psutil/__init__.py                   # Main API namespace ("import psutil")
+   psutil/_common.py                    # Generic utilities
+   psutil/_ntuples.py                   # Named tuples returned by psutil APIs
+   psutil/_enums.py                     # Enum containers backing psutil constants
+   psutil/_ps{platform}.py              # Platform-specific python wrappers
+   psutil/_psutil_{platform}.c          # Platform-specific C extensions (entry point)
+   psutil/arch/all/*.c                  # C code common to all platforms
+   psutil/arch/{platform}/*.c           # Platform-specific C extension
+   tests/test_process|system.py         # Main system/process API tests
+   tests/test_{platform}.py             # Platform-specific tests
 
 Adding a new API
 ----------------
@@ -163,13 +165,13 @@ Documentation
 
   .. code-block:: bash
 
-    cd docs/
-    python3 -m pip install -r requirements.txt
-    make html
+     cd docs/
+     python3 -m pip install -r requirements.txt
+     make html
 
 - The public documentation is hosted at https://psutil.readthedocs.io.
 - There are 2 versions, which you can select from the dropdown menu at the top
-  of the page:
+  left of the page:
 
   - `/stable <https://psutil.readthedocs.io/stable>`_: generated from the most
     recent Git tag (latest released psutil version).
@@ -180,6 +182,11 @@ Redirects:
 
 - https://psutil.readthedocs.io redirects to
   `/stable <https://psutil.readthedocs.io/stable>`_ by default.
+
+.. note::
+
+   The ``/latest`` version reflects the development branch and may contain
+   unreleased changes. For stable documentation, use ``/stable``.
 
 Releases
 --------

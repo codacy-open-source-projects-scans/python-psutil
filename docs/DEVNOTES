@@ -2,8 +2,29 @@ TODO
 ====
 
 A collection of ideas and notes about stuff to implement in future versions.
-"#NNN" occurrences refer to bug tracker issues at:
-https://github.com/giampaolo/psutil/issues
+
+INCONSISTENCIES
+===============
+
+(the "too late" section)
+
+- PROCFS_PATH should have been set_procfs_path().
+
+- `virtual_memory()` should have been `memory_virtual()`.
+
+- `swap_memory()` should have been `memory_swap()`.
+
+- Named tuples are problematic. Positional unpacking of named tuples could be
+  deprecated. Return frozen dataclasses (with a common base class) instead of
+  `typing.NamedTuple`. The base class would keep `_fields`, `_asdict()` and
+  `len()` for compat, but `__iter__` and `__getitem__` would emit
+  DeprecationWarning. Main concern: `isinstance(x, tuple)` would break.
+
+REJECTED IDEAS
+==============
+
+- #550: threads per core
+- #1667: process_iter(new_only=True)
 
 FEATURES
 ========
@@ -38,16 +59,6 @@ FEATURES
 - Number of system threads.
   - Windows: http://msdn.microsoft.com/en-us/library/windows/desktop/ms684824(v=vs.85).aspx
 
-- Doc / wiki which compares similarities between UNIX cli tools and psutil.
-  Example:
-  ```
-  df -a  ->  psutil.disk_partitions
-  lsof  ->  psutil.Process.open_files() and psutil.Process.net_connections()
-  killall->  (actual script)
-  tty  ->  psutil.Process.terminal()
-  who  ->  psutil.users()
-  ```
-
 - psutil.proc_tree() something which obtains a {pid:ppid, ...} dict for
   all running processes in one shot. This can be factored out from
   Process.children() and exposed as a first class function.
@@ -70,8 +81,6 @@ FEATURES
   http://docs.python.org/dev/library/os.html#interface-to-the-scheduler
   It might be worth to take a look and figure out whether we can include some
   of those in psutil.
-  Also, we can probably reimplement wait_pid() on POSIX which is currently
-  implemented as a busy-loop.
 
 - os.times() provides 'elapsed' times (cpu_times() might).
 
@@ -102,32 +111,12 @@ FEATURES
 
 - round Process.memory_percent() result?
 
-BUGFIXES
-========
-
-- #600: windows / open_files(): support network file handles.
-
-REJECTED IDEAS
-==============
-
-- #550: threads per core
-- #1667: process_iter(new_only=True)
-
-INCONSISTENCIES
-===============
-
-- PROCFS_PATH should have been set_procfs_path().
-- `virtual_memory()` should have been `memory_virtual()`.
-- `swap_memory()` should have been `memory_swap()`.
-
 RESOURCES
 =========
 
-- conky: https://github.com/brndnmtthws/conky/
 - sigar: https://github.com/hyperic/sigar (Java)
 - zabbix: https://zabbix.org/wiki/Get_Zabbix
 - libstatgrab: http://www.i-scream.org/libstatgrab/
-- top: http://www.unixtop.org/
 - oshi: https://github.com/oshi/oshi
 - netdata: https://github.com/netdata/netdata
 

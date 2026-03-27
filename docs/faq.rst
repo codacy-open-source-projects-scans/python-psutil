@@ -9,6 +9,33 @@ This section answers common questions and pitfalls when using psutil.
    :local:
    :depth: 3
 
+General
+-------
+
+.. _faq_named_tuple_unpacking:
+
+Why should I avoid positional unpacking of named tuples?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Most psutil functions return named tuples. It is tempting to unpack them
+positionally, but **field order may change across major releases** (as
+happened in 8.0 with :func:`cpu_times` and :meth:`Process.memory_info`).
+Always use attribute access instead:
+
+.. code-block:: python
+
+  # bad
+  rss, vms = p.memory_info()
+
+  # good
+  m = p.memory_info()
+  print(m.rss, m.vms)
+
+See the :ref:`migration guide <migration-8.0>` for the full list of
+field-order changes in 8.0.
+
+-------------------------------------------------------------------------------
+
 Exceptions
 ----------
 
@@ -40,17 +67,18 @@ You have two options to deal with it.
     except (psutil.AccessDenied, psutil.NoSuchProcess):
         pass
 
-- Option 2: use :func:`process_iter` with a list of attribute names to pre-fetch.
-  If fetching an attribute raises :exc:`AccessDenied` internally, the
-  corresponding method returns ``None`` (or the ``ad_value`` argument, if
-  specified):
+- Option 2: use :func:`process_iter` with a list of attribute names to
+  pre-fetch. Both :exc:`AccessDenied` and :exc:`NoSuchProcess` are handled
+  internally: the corresponding method returns ``None`` (or ``ad_value``)
+  instead of raising. This also avoids the race condition where a process
+  disappears between iteration and method call:
 
   .. code-block:: python
 
     import psutil
 
     for p in psutil.process_iter(["name", "username"], ad_value="N/A"):
-        print(p.username())  # may print "N/A"
+        print(p.name(), p.username())  # no try/except needed
 
 .. _faq_no_such_process:
 
@@ -60,7 +88,7 @@ Why do I get NoSuchProcess?
 :exc:`NoSuchProcess` is raised when a process no longer exists.
 The most common cause is a TOCTOU (time-of-check / time-of-use) race
 condition: a process can die between the moment its PID is obtained and
-the moment it is queried. The following 2 naive patterns are racy:
+the moment it is queried. The following two naive patterns are racy:
 
 .. code-block:: python
 
@@ -125,7 +153,7 @@ for a :term:`zombie process`.
 
 **What you can and cannot do with a zombie:**
 
-- A zombie can be instantiated via :class:`Process` (pid) without error.
+- A zombie process can be instantiated via :class:`Process` (pid) without error.
 - :meth:`Process.status` always returns :data:`STATUS_ZOMBIE`.
 - :meth:`Process.is_running` and :func:`pid_exists` return ``True``.
 - The zombie appears in :func:`process_iter` and :func:`pids`.
@@ -152,7 +180,7 @@ process call ``wait()`` (or ``waitpid()``). If the parent never does
 this, killing the parent will cause the zombie to be re-parented to
 ``init`` / ``systemd``, which will reap it automatically.
 
-----
+-------------------------------------------------------------------------------
 
 Processes
 ---------
@@ -177,8 +205,7 @@ was assigned the same PID.
   :meth:`Process.terminate`, :meth:`Process.kill`) **do** check for PID
   reuse (via PID + creation time) before acting, raising
   :exc:`NoSuchProcess` if the PID was recycled. This prevents accidentally
-  killing the wrong process (`BPO-6973
-  <https://bugs.python.org/issue6973>`_).
+  killing the wrong process (`BPO-6973`_).
 
 - *Set methods* :meth:`Process.nice` (set), :meth:`Process.ionice` (set),
   :meth:`Process.cpu_affinity` (set), and
@@ -203,7 +230,7 @@ against reuse (it's faster). Use :meth:`Process.is_running` when you
 hold a :class:`Process` object and want to confirm it still refers to
 the same process.
 
-----
+-------------------------------------------------------------------------------
 
 CPU
 ---
@@ -256,14 +283,13 @@ stays in the 0–100% range because it averages across all cores.
 
 .. _faq_cpu_count:
 
-What is the difference between psutil, os, and multiprocessing cpu_count?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What is the difference between psutil, os, and multiprocessing cpu_count()?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - :func:`os.cpu_count` returns the number of **logical** CPUs (including
   hyperthreads). It is the same as ``psutil.cpu_count(logical=True)``, but
-  psutil does not honour
-  `PYTHON_CPU_COUNT <https://docs.python.org/3/using/cmdline.html#envvar-PYTHON_CPU_COUNT>`_
-  environment variable introduced in Python 3.13.
+  psutil does not honour `PYTHON_CPU_COUNT`_ environment variable introduced in
+  Python 3.13.
 - :func:`os.process_cpu_count` (Python 3.13+) returns the number of CPUs the
   calling process is **allowed to use** (respects CPU affinity and cgroups).
   The psutil equivalent is ``len(psutil.Process().cpu_affinity())``.
@@ -272,7 +298,7 @@ What is the difference between psutil, os, and multiprocessing cpu_count?
 - :func:`psutil.cpu_count` with ``logical=False`` returns the number of
   **physical** cores, which has no stdlib equivalent.
 
-----
+-------------------------------------------------------------------------------
 
 Memory
 ------
@@ -348,3 +374,6 @@ separately:
 
 The ``available`` field already includes this reclaimable memory and is the
 best indicator of memory pressure. See :ref:`faq_virtual_memory_available`.
+
+.. _`BPO-6973`: https://bugs.python.org/issue6973
+.. _`PYTHON_CPU_COUNT`: https://docs.python.org/3/using/cmdline.html#envvar-PYTHON_CPU_COUNT
