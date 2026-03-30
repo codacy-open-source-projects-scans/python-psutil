@@ -9,7 +9,7 @@ API reference
    :ref:`migration guide <migration-8.0>` if upgrading from 7.x.
 
 .. important::
-   Do not rely on positional unpacking of named tuples.
+   do not rely on positional unpacking of named tuples.
    Always use attribute access (e.g. ``t.rss``).
 
 .. contents::
@@ -220,7 +220,7 @@ CPU
 
   Example (Linux):
 
-  .. code-block:: python
+  .. code-block:: pycon
 
      >>> import psutil
      >>> psutil.cpu_stats()
@@ -241,7 +241,7 @@ CPU
 
   Example (Linux):
 
-  .. code-block:: python
+  .. code-block:: pycon
 
      >>> import psutil
      >>> psutil.cpu_freq()
@@ -277,7 +277,7 @@ CPU
   with 10 logical CPUs means that the system load was 31.4% percent over the
   last N minutes.
 
-  .. code-block:: python
+  .. code-block:: pycon
 
      >>> import psutil
      >>> psutil.getloadavg()
@@ -420,7 +420,8 @@ Memory
      ...
      >>>
 
-  .. note:: if you just want to know how much physical memory is left in a
+  .. note::
+    if you just want to know how much physical memory is left in a
     cross-platform manner, simply rely on **available** and **percent**
     fields.
 
@@ -473,7 +474,7 @@ Memory
 
      >>> import psutil
      >>> psutil.swap_memory()
-     sswap(total=2097147904L, used=886620160L, free=1210527744L, percent=42.3, sin=1050411008, sout=1906720768)
+     sswap(total=2097147904, used=886620160, free=1210527744, percent=42.3, sin=1050411008, sout=1906720768)
 
   .. seealso:: `scripts/meminfo.py`_.
 
@@ -538,7 +539,7 @@ Disks
      sdiskusage(total=21378641920, used=4809781248, free=15482871808, percent=22.5)
 
   .. note::
-    On UNIX, *path* must point to a path within a **mounted** filesystem partition.
+    on UNIX, *path* must point to a path within a **mounted** filesystem partition.
 
   .. note::
     UNIX usually reserves 5% of the total disk space for the root user.
@@ -658,7 +659,7 @@ Network
      >>>
      >>> psutil.net_io_counters(pernic=True)
      {'lo': snetio(bytes_sent=547971, bytes_recv=547971, packets_sent=5075, packets_recv=5075, errin=0, errout=0, dropin=0, dropout=0),
-     'wlan0': snetio(bytes_sent=13921765, bytes_recv=62162574, packets_sent=79097, packets_recv=89648, errin=0, errout=0, dropin=0, dropout=0)}
+      'wlan0': snetio(bytes_sent=13921765, bytes_recv=62162574, packets_sent=79097, packets_recv=89648, errin=0, errout=0, dropin=0, dropout=0)}
 
   .. seealso:: `scripts/nettop.py`_ and `scripts/ifconfig.py`_.
 
@@ -701,27 +702,27 @@ Network
    +----------------+-----------------------------------------------------+
    | Kind value     | Connections using                                   |
    +================+=====================================================+
-   | ``"inet"``     | IPv4 and IPv6                                       |
+   | ``'inet'``     | IPv4 and IPv6                                       |
    +----------------+-----------------------------------------------------+
-   | ``"inet4"``    | IPv4                                                |
+   | ``'inet4'``    | IPv4                                                |
    +----------------+-----------------------------------------------------+
-   | ``"inet6"``    | IPv6                                                |
+   | ``'inet6'``    | IPv6                                                |
    +----------------+-----------------------------------------------------+
-   | ``"tcp"``      | TCP                                                 |
+   | ``'tcp'``      | TCP                                                 |
    +----------------+-----------------------------------------------------+
-   | ``"tcp4"``     | TCP over IPv4                                       |
+   | ``'tcp4'``     | TCP over IPv4                                       |
    +----------------+-----------------------------------------------------+
-   | ``"tcp6"``     | TCP over IPv6                                       |
+   | ``'tcp6'``     | TCP over IPv6                                       |
    +----------------+-----------------------------------------------------+
-   | ``"udp"``      | UDP                                                 |
+   | ``'udp'``      | UDP                                                 |
    +----------------+-----------------------------------------------------+
-   | ``"udp4"``     | UDP over IPv4                                       |
+   | ``'udp4'``     | UDP over IPv4                                       |
    +----------------+-----------------------------------------------------+
-   | ``"udp6"``     | UDP over IPv6                                       |
+   | ``'udp6'``     | UDP over IPv6                                       |
    +----------------+-----------------------------------------------------+
-   | ``"unix"``     | UNIX socket (both UDP and TCP protocols)            |
+   | ``'unix'``     | UNIX socket (both UDP and TCP protocols)            |
    +----------------+-----------------------------------------------------+
-   | ``"all"``      | the sum of all the possible families and protocols  |
+   | ``'all'``      | the sum of all the possible families and protocols  |
    +----------------+-----------------------------------------------------+
 
   On macOS and AIX this function requires root privileges.
@@ -738,7 +739,7 @@ Network
       ...]
 
   .. warning::
-    On Linux, retrieving some connections requires root privileges. If psutil is
+    on Linux, retrieving some connections requires root privileges. If psutil is
     not run as root, those connections are silently skipped instead of raising
     :exc:`PermissionError`. That means the returned list may be incomplete.
 
@@ -970,7 +971,7 @@ Other system info
   system clock, which means it may be affected by changes such as manual
   adjustments or time synchronization (e.g. NTP).
 
-  .. code-block:: python
+  .. code-block:: pycon
 
      >>> import psutil, datetime
      >>> psutil.boot_time()
@@ -1071,7 +1072,7 @@ Functions
 
   .. note::
 
-    Since :class:`Process` instances are reused across calls, a subsequent
+    since :class:`Process` instances are reused across calls, a subsequent
     :func:`process_iter` call will overwrite or clear any previously
     pre-fetched values. Do not rely on cached values from a prior iteration.
 
@@ -1200,7 +1201,7 @@ Process class
 
   .. note::
 
-    In order to efficiently fetch more than one information about the process
+    in order to efficiently fetch more than one information about the process
     at the same time, make sure to use either :meth:`oneshot` context manager
     or :meth:`as_dict` utility method.
 
@@ -1312,9 +1313,13 @@ Process class
   .. attribute:: info
 
     A dict containing pre-fetched process info, set by
-    :func:`process_iter` when called with ``attrs``. Use method
-    calls instead (e.g. ``p.name()`` instead of ``p.info['name']``).
-    Accessing this attribute raises :exc:`DeprecationWarning`.
+    :func:`process_iter` when called with ``attrs`` argument.
+    Accessing this attribute is deprecated and raises :exc:`DeprecationWarning`.
+    Use method calls instead (e.g. ``p.name()`` instead of ``p.info['name']``)
+    or :func:`process_iter` + :meth:`Process.as_dict` if you need a dict
+    structure.
+
+    .. seealso:: :ref:`migration guide <migration-8.0>`.
 
     .. deprecated:: 8.0.0
 
@@ -1354,7 +1359,7 @@ Process class
 
        >>> import psutil
        >>> psutil.Process().cmdline()
-       ['python', 'manage.py', 'runserver']
+       ['python3', 'manage.py', 'runserver']
 
   .. method:: environ()
 
@@ -2287,27 +2292,27 @@ Process class
     +----------------+-----------------------------------------------------+
     | Kind value     | Connections using                                   |
     +================+=====================================================+
-    | ``"inet"``     | IPv4 and IPv6                                       |
+    | ``'inet'``     | IPv4 and IPv6                                       |
     +----------------+-----------------------------------------------------+
-    | ``"inet4"``    | IPv4                                                |
+    | ``'inet4'``    | IPv4                                                |
     +----------------+-----------------------------------------------------+
-    | ``"inet6"``    | IPv6                                                |
+    | ``'inet6'``    | IPv6                                                |
     +----------------+-----------------------------------------------------+
-    | ``"tcp"``      | TCP                                                 |
+    | ``'tcp'``      | TCP                                                 |
     +----------------+-----------------------------------------------------+
-    | ``"tcp4"``     | TCP over IPv4                                       |
+    | ``'tcp4'``     | TCP over IPv4                                       |
     +----------------+-----------------------------------------------------+
-    | ``"tcp6"``     | TCP over IPv6                                       |
+    | ``'tcp6'``     | TCP over IPv6                                       |
     +----------------+-----------------------------------------------------+
-    | ``"udp"``      | UDP                                                 |
+    | ``'udp'``      | UDP                                                 |
     +----------------+-----------------------------------------------------+
-    | ``"udp4"``     | UDP over IPv4                                       |
+    | ``'udp4'``     | UDP over IPv4                                       |
     +----------------+-----------------------------------------------------+
-    | ``"udp6"``     | UDP over IPv6                                       |
+    | ``'udp6'``     | UDP over IPv6                                       |
     +----------------+-----------------------------------------------------+
-    | ``"unix"``     | UNIX socket (both UDP and TCP protocols)            |
+    | ``'unix'``     | UNIX socket (both UDP and TCP protocols)            |
     +----------------+-----------------------------------------------------+
-    | ``"all"``      | the sum of all the possible families and protocols  |
+    | ``'all'``      | the sum of all the possible families and protocols  |
     +----------------+-----------------------------------------------------+
 
     .. code-block:: pycon
@@ -2323,7 +2328,7 @@ Process class
         pconn(fd=123, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status=<ConnectionStatus.CONN_SYN_SENT: 'SYN_SENT'>)]
 
     .. warning::
-      On Linux, retrieving connections for certain processes requires root
+      on Linux, retrieving connections for certain processes requires root
       privileges. If psutil is not run as root, those connections are silently
       skipped instead of raising :exc:`psutil.AccessDenied`. That means
       the returned list may be incomplete.
@@ -2458,11 +2463,11 @@ Process class
        >>> p = psutil.Process(9891)
        >>> p.terminate()
        >>> p.wait()
-       <Negsignal.SIGTERM: -15>
+       <NegSignal.SIGTERM: -15>
 
     .. note::
 
-      When *timeout* is not ``None`` and the platform supports it, an
+      when *timeout* is not ``None`` and the platform supports it, an
       efficient event-driven mechanism is used to wait for process termination:
 
       - Linux >= 5.3 with Python >= 3.9 uses :func:`os.pidfd_open` + :func:`select.poll`
@@ -2511,9 +2516,9 @@ Popen class
      >>> import psutil
      >>> from subprocess import PIPE
      >>>
-     >>> p = psutil.Popen(["/usr/bin/python", "-c", "print('hello')"], stdout=PIPE)
+     >>> p = psutil.Popen(["/usr/bin/python3", "-c", "print('hello')"], stdout=PIPE)
      >>> p.name()
-     'python'
+     'python3'
      >>> p.username()
      'giampaolo'
      >>> p.communicate()
@@ -2815,24 +2820,86 @@ Represent the current status of a process. Returned by :meth:`Process.status`.
    See :ref:`migration guide <migration-8.0>`.
 
 .. data:: STATUS_RUNNING
+
+   The process is running or ready to run (e.g. ``while True: pass``).
+
 .. data:: STATUS_SLEEPING
+
+   The process is dormant (e.g. during ``time.sleep()``) but can be woken up,
+   e.g. via a signal.
+
 .. data:: STATUS_DISK_SLEEP
+
+   The process is waiting for disk I/O to complete. The kernel usually ignores
+   signals in this state to prevent data corruption. E.g. ``os.read(fd, 1024)``
+   on a slow / blocked device can produce this state.
+
 .. data:: STATUS_STOPPED
+
+   The process was suspended via ``SIGSTOP`` signal and won't run until it
+   receives ``SIGCONT``.
+
 .. data:: STATUS_TRACING_STOP
+
+   The process is temporarily halted because it is being inspected by a
+   debugger (e.g. via ``strace -p <pid>``).
+
 .. data:: STATUS_ZOMBIE
+
+   The process has finished execution and released its resources, but it
+   remains in the process table until the parent reaps it via ``wait()``.
+
 .. data:: STATUS_DEAD
+
+   The final process state where the kernel is actively removing its entry from
+   the system. Occurs after the process is reaped.
+
 .. data:: STATUS_WAKE_KILL
+
+   (Linux only) A variant of :data:`STATUS_DISK_SLEEP` where the process can be
+   awakened by ``SIGKILL``. Used for tasks which might otherwise remain blocked
+   indefinitely, e.g. unresponsive network filesystems such as NFS, as in
+   ``open("/mnt/nfs_hung/file").read()``.
+
 .. data:: STATUS_WAKING
-.. data:: STATUS_PARKED (Linux)
 
-  .. versionadded:: 5.4.7
+   (Linux only) A transient state right before the process becomes runnable
+   (:data:`STATUS_RUNNING`).
 
-.. data:: STATUS_IDLE (Linux, macOS, FreeBSD)
-.. data:: STATUS_LOCKED (FreeBSD)
-.. data:: STATUS_WAITING (FreeBSD)
-.. data:: STATUS_SUSPENDED (NetBSD)
+.. data:: STATUS_PARKED
 
-  .. versionadded:: 3.4.1
+   (Linux only) A dormant state for kernel threads tied to a specific CPU.
+   These threads are "parked" when a CPU core is taken offline and will
+   remain inactive until the core is re-enabled.
+
+   .. versionadded:: 5.4.7
+
+.. data:: STATUS_IDLE
+
+   (Linux, macOS, FreeBSD) A sleep for kernel threads waiting for work.
+
+   .. versionadded:: 3.4.1
+
+.. data:: STATUS_LOCKED
+
+   (FreeBSD only) The process is blocked specifically waiting for a
+   kernel-level synchronization primitive (e.g. a mutex).
+
+   .. versionadded:: 3.4.1
+
+.. data:: STATUS_WAITING
+
+   (FreeBSD only) The process is waiting in a kernel sleep queue for a
+   specific system event to occur.
+
+   .. versionadded:: 3.4.1
+
+.. data:: STATUS_SUSPENDED
+
+   (NetBSD only) The process has been explicitly paused, similar to
+   the stopped state but managed by the NetBSD scheduler.
+
+   .. versionadded:: 3.4.1
 
 Process priority constants
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2906,8 +2973,8 @@ Process resource constants
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Constants for getting or setting process resource limits, to be used in in
-conjunction with :meth:`Process.rlimit`. See :func:`resource.getrlimit` for
-further information.
+conjunction with :meth:`Process.rlimit`. The meaning of each constant is
+explained in :func:`resource.getrlimit` documentation.
 
 .. availability:: Linux, FreeBSD
 

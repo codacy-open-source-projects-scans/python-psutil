@@ -73,7 +73,7 @@
     --func-sig-name: var(--gray-800);
     --func-sig-param: var(--gray-500);
 
-    --table-header-bg: var(--adm-note-bg);
+    --table-header-bg: #f0f4f7;
 }
 
 /* ================================================================== */
@@ -84,6 +84,17 @@
     .wy-nav-content {
         max-width: 1000px;
         padding-left: 20px !important;
+    }
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 768px) {
+    .wy-nav-content {
+        padding: 0 12px 1.618em 12px !important;
     }
 }
 
@@ -130,9 +141,49 @@ footer div[role="navigation"][aria-label="Footer"] {
     color: #333 !important;
 }
 
+.wy-menu-vertical li.current > a {
+    border-left: 3px solid #55a5d9 !important;
+}
+
+/* ================================================================== */
+/* Footer                                                           */
+/* ================================================================== */
+
+.footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.footer-row p {
+    margin: 0 !important;
+}
+
+.footer-icons {
+    display: flex;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.footer-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: #999;
+    transition: fill 0.2s;
+}
+
+.footer-icon:hover svg {
+    fill: #444;
+}
+
 /* ================================================================== */
 /* Headings                                                           */
 /* ================================================================== */
+
+h1, h2, h3, h4 {
+    margin-top: 20px !important;
+    margin-bottom: 10px !important;
+}
 
 h1, h2 {
     padding: 5px;
@@ -156,12 +207,24 @@ h4 {
     font-size: 0.9rem;
 }
 
+.rst-content p {
+    margin-bottom: 16px !important;
+}
+
 /* ================================================================== */
 /* Tables                                                             */
 /* ================================================================== */
 
 .wy-table-responsive table thead {
     background-color: var(--table-header-bg);
+}
+
+.wy-table-responsive table tbody tr.row-odd td {
+    background-color: #f8f9fa !important;
+}
+
+.wy-table-responsive table tbody tr.row-even td {
+    background-color: #ffffff !important;
 }
 
 .document th {
@@ -243,6 +306,10 @@ h4 {
     margin: 0px 0px 0px 0px !important;
 }
 
+.rst-content dl.py + dl.py > dt {
+    margin-top: 28px !important;
+}
+
 .rst-content dl:not(.docutils) dt {
     color: var(--func-sig-text);
 }
@@ -266,8 +333,41 @@ h4 {
 }
 
 /* ================================================================== */
+/* Inline code / API refs                                              */
+/* ================================================================== */
+
+/* inline literals: ``like this`` */
+.rst-content code, .rst-content tt, code {
+    color: inherit !important;
+    background: rgba(175, 184, 193, 0.2) !important;
+    border: none !important;
+    border-radius: 4px !important;
+    padding: .1em .35em !important;
+    font-size: 85% !important;
+    font-family: var(--code-font) !important;
+    font-weight: normal !important;
+}
+
+/* cross-references to API symbols like :func:`psutil.users` */
+.rst-content a.reference code,
+.rst-content a.reference tt {
+    color: inherit !important;
+    /*background: rgba(175, 184, 193, 0.2) !important;*/
+    background: none !important;
+    /*font-weight: bold !important;*/
+    font-size:90% !important;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* ================================================================== */
 /* Code blocks                                                        */
 /* ================================================================== */
+
+/* Python number, string, and namedtuple name highlights in pycon output */
+.highlight-pycon .pycon-number { color: #ae81ff; }
+.highlight-pycon .pycon-string { color: #e6db74; }
+.highlight-pycon .pycon-name   { color: #89b8d4; }
 
 /* reduce bottom margin of code blocks inside list items */
 .rst-content li > div[class^='highlight'] {
@@ -276,6 +376,7 @@ h4 {
 
 .highlight,
 .highlight pre {
+    font-size: 92% !important;
     font-family: var(--code-font) !important;
 }
 
@@ -292,21 +393,25 @@ div[class^="highlight-"] {
 
 .highlight pre {
     line-height: var(--code-line-height) !important;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 /* ================================================================== */
 /* Links                                                              */
 /* ================================================================== */
 
-/* external links: dotted underline (except intersphinx and image links) */
+/* external links: small icon instead of dotted underline */
 a.reference.external:not([href*="docs.python.org"]):not(:has(img)) {
-    text-decoration: underline dotted;
+    text-decoration: none;
 }
 
-a.reference.external:not([href*="docs.python.org"]):not(:has(img)):hover {
-    text-decoration: underline solid;
+a.reference.external:not([href*="docs.python.org"]):not(:has(img))::after {
+    content: '\f08e';
+    font-family: FontAwesome;
+    font-size: 0.4em;
+    margin-left: 0.25em;
+    padding-left: 1px;
+    vertical-align: super;
+    opacity: 0.6;
 }
 
 a.external[href^="#"] {
