@@ -98,15 +98,15 @@ Sponsors
       </tr>
     </table>
 
-    <div style="text-align: center;"><sup><a href="https://github.com/sponsors/giampaolo">add your logo</a></sup></div>
+    <div style="text-align: center;"><sup><a href="https://psutil.readthedocs.io/latest/funding.html">add your logo</a></sup></div>
 
 .. </PYPI-EXCLUDE>
 
 Projects using psutil
 =====================
 
-psutil is one of the `top 100`_ most-downloaded packages on PyPI, with **300+
-million** downloads per month, `760,000+ GitHub repositories
+psutil is one of the `top 100`_ most-downloaded packages on PyPI, with 300+
+million downloads per month, `760,000+ GitHub repositories
 <https://github.com/giampaolo/psutil/network/dependents>`_ using it, and
 14,000+ packages depending on it. Some notable projects using psutil:
 
@@ -123,7 +123,7 @@ million** downloads per month, `760,000+ GitHub repositories
   `Ajenti <https://github.com/ajenti/ajenti>`_,
   `GRR <https://github.com/google/grr>`_
 
-`Full list <https://psutil.readthedocs.io/latest/adoption>`_
+`Full list <https://psutil.readthedocs.io/latest/adoption.html>`_
 
 Example usages
 ==============

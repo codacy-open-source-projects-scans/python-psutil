@@ -10,8 +10,8 @@ See also :doc:`adoption` for notable projects that use psutil.
 Python standard library
 -----------------------
 
-See also :doc:`stdlib-equivalents` for a detailed function-by-function
-comparison.
+.. seealso::
+   :doc:`stdlib-equivalents` for a detailed function-by-function comparison.
 
 os module
 ^^^^^^^^^
@@ -74,8 +74,8 @@ dependencies, which is why some minimal containers or scripts do this. The
 downsides are that it is Linux-only, the format may vary across kernel
 versions, and you have to parse raw text yourself. psutil parses ``/proc``
 internally, exposes the same information through a consistent
-cross-platform API and handles edge cases (numeric overflow, compatibility
-with old kernels, graceful fallbacks, etc.) transparently.
+cross-platform API and handles edge cases (invalid format, compatibility with
+old kernels, graceful fallbacks, etc.).
 
 Third-party libraries
 ---------------------

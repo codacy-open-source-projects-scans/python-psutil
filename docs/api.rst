@@ -131,11 +131,6 @@ CPU
      [2.0, 1.0]
      >>>
 
-  .. note::
-    the first time this function is called with *interval* = ``0.0`` or ``None``
-    it will return a meaningless ``0.0`` value which you are supposed to
-    ignore.
-
   .. seealso:: :ref:`faq_cpu_percent`
 
   .. versionchanged:: 5.9.6
@@ -150,11 +145,6 @@ CPU
   *percpu* arguments have the same meaning as in :func:`cpu_percent`.
   On Linux "guest" and "guest_nice" percentages are not accounted in "user"
   and "user_nice" percentages.
-
-  .. note::
-    the first time this function is called with *interval* = ``0.0`` or
-    ``None`` it will return a meaningless ``0.0`` value which you are supposed
-    to ignore.
 
   .. seealso:: :ref:`faq_cpu_percent`
 
@@ -192,9 +182,9 @@ CPU
 
   Note that ``psutil.cpu_count()`` may not necessarily be equivalent to the
   actual number of CPUs the current process can use.
-  That can vary in case process CPU affinity has been changed, Linux cgroups
-  are being used or (in case of Windows) on systems using processor groups or
-  having more than 64 CPUs.
+  That can vary if process CPU affinity has been changed, Linux cgroups are
+  being used or (on Windows) on systems using processor groups or having more
+  than 64 CPUs.
   The number of usable CPUs can be obtained with:
 
   .. code-block:: pycon
@@ -480,9 +470,8 @@ Memory
 
   .. versionchanged:: 5.2.3
      on Linux this function relies on /proc fs instead of sysinfo() syscall so
-     that it can be used in conjunction with
-     :const:`psutil.PROCFS_PATH` in order to retrieve memory info about
-     Linux containers such as Docker and Heroku.
+     that it can be used in conjunction with :const:`psutil.PROCFS_PATH` to
+     retrieve memory info about Linux containers such as Docker and Heroku.
 
 Disks
 ^^^^^
@@ -577,18 +566,13 @@ Disks
   - **write_merged_count** (*Linux*): number of merged writes (see `iostats doc`_)
 
   If *perdisk* is ``True`` return the same information for every physical disk
-  installed on the system as a dictionary with partition names as the keys and
-  the named tuple described above as the values.
+  as a dictionary with partition names as the keys.
 
-  On some systems such as Linux, on a very busy or long-lived system, the
-  numbers returned by the kernel may overflow and wrap (restart from zero).
-  If *nowrap* is ``True`` psutil will detect and adjust those numbers across
-  function calls and add "old value" to "new value" so that the returned
-  numbers will always be increasing or remain the same, but never decrease.
-  ``disk_io_counters.cache_clear()`` can be used to invalidate the *nowrap*
-  cache.
-  On Windows it may be necessary to issue ``diskperf -y`` command from cmd.exe
-  first in order to enable IO counters.
+  If *nowrap* is ``True`` (default), counters that overflow and wrap to zero
+  are automatically adjusted so they never decrease (this can happen on very
+  busy or long-lived systems). ``disk_io_counters.cache_clear()`` can be used
+  to invalidate the *nowrap* cache.
+
   On diskless machines this function will return ``None`` or ``{}`` if
   *perdisk* is ``True``.
 
@@ -639,15 +623,13 @@ Network
     on macOS and BSD). See :term:`dropin / dropout`.
 
   If *pernic* is ``True`` return the same information for every network
-  interface installed on the system as a dictionary with network interface
-  names as the keys and the named tuple described above as the values.
-  On some systems such as Linux, on a very busy or long-lived system, the
-  numbers returned by the kernel may overflow and wrap (restart from zero).
-  If *nowrap* is ``True`` psutil will detect and adjust those numbers across
-  function calls and add "old value" to "new value" so that the returned
-  numbers will always be increasing or remain the same, but never decrease.
-  ``net_io_counters.cache_clear()`` can be used to invalidate the *nowrap*
-  cache.
+  interface as a dictionary with interface names as the keys.
+
+  If *nowrap* is ``True`` (default), counters that overflow and wrap to zero
+  are automatically adjusted so they never decrease (this can happen on very
+  busy or long-lived systems). ``net_io_counters.cache_clear()`` can be
+  used to invalidate the *nowrap* cache.
+
   On machines with no network interfaces this function will return ``None`` or
   ``{}`` if *pernic* is ``True``.
 
@@ -672,27 +654,19 @@ Network
   Return system-wide socket connections as a list of named tuples.
   Every named tuple provides 7 attributes:
 
-  - **fd**: the socket file descriptor. If the connection refers to the current
-    process this may be passed to :func:`socket.fromfd`
-    to obtain a usable socket object.
-    On Windows and SunOS this is always set to ``-1``.
-  - **family**: the address family, either :data:`socket.AF_INET`, :data:`socket.AF_INET6` or :data:`socket.AF_UNIX`.
-  - **type**: the address type, either :data:`socket.SOCK_STREAM`, :data:`socket.SOCK_DGRAM` or
-    :data:`socket.SOCK_SEQPACKET`.
+  - **fd**: the socket file descriptor; ``-1`` on Windows and SunOS.
+  - **family**: the address family, either :data:`socket.AF_INET`,
+    :data:`socket.AF_INET6` or :data:`socket.AF_UNIX`.
+  - **type**: the address type, either :data:`socket.SOCK_STREAM`,
+    :data:`socket.SOCK_DGRAM` or :data:`socket.SOCK_SEQPACKET`.
   - **laddr**: the local address as a ``(ip, port)`` named tuple or a ``path``
-    in case of :data:`socket.AF_UNIX` sockets. For UNIX sockets see notes below.
-  - **raddr**: the remote address as a ``(ip, port)`` named tuple or an
-    absolute ``path`` in case of UNIX sockets.
-    When the remote endpoint is not connected you'll get an empty tuple
-    (AF_INET*) or ``""`` (AF_UNIX). For UNIX sockets see notes below.
-  - **status**: represents the status of a TCP connection. The return value
-    is one of the :data:`psutil.CONN_* <psutil.CONN_ESTABLISHED>` constants
-    (a string).
-    For UDP and UNIX sockets this is always going to be
-    :const:`psutil.CONN_NONE`.
-  - **pid**: the PID of the process which opened the socket, if retrievable,
-    else ``None``. On some platforms (e.g. Linux) the availability of this
-    field changes depending on process privileges (root is needed).
+    for :data:`socket.AF_UNIX` sockets (see notes below).
+  - **raddr**: the remote address, either an empty tuple (``AF_INET*``) or
+    ``""`` (``AF_UNIX``) when not connected. For UNIX sockets see notes below.
+  - **status**: a :data:`psutil.CONN_* <psutil.CONN_ESTABLISHED>` constant;
+    always :const:`psutil.CONN_NONE` for UDP and UNIX sockets.
+  - **pid**: PID of the process which opened the socket. Set to ``None`` if it
+    can't be retrieved due to insufficient permissions (e.g. Linux).
 
   The *kind* parameter is a string which filters for connections matching the
   following criteria:
@@ -725,9 +699,6 @@ Network
    | ``'all'``      | the sum of all the possible families and protocols  |
    +----------------+-----------------------------------------------------+
 
-  On macOS and AIX this function requires root privileges.
-  To get per-process connections use :meth:`Process.net_connections`.
-
   .. code-block:: pycon
 
      >>> import psutil
@@ -744,17 +715,16 @@ Network
     :exc:`PermissionError`. That means the returned list may be incomplete.
 
   .. note::
-    (macOS and AIX) :exc:`psutil.AccessDenied` is always raised unless running
-    as root. This is a limitation of the OS and ``lsof`` does the same.
+    - Linux, FreeBSD, OpenBSD: *raddr* field for UNIX sockets is always set to
+      ``""`` (empty string); this is a limitation of the OS
+    - macOS and AIX: :exc:`psutil.AccessDenied` is always raised unless running
+      as root; this is a limitation of the OS
+    - Solaris: UNIX sockets are not supported
 
-  .. note::
-    (Solaris) UNIX sockets are not supported.
+  .. seealso::
 
-  .. note::
-     (Linux, FreeBSD, OpenBSD) *raddr* field for UNIX sockets is always set to
-     ``""`` (empty string). This is a limitation of the OS.
-
-  .. seealso:: `scripts/netstat.py`_.
+    - :meth:`Process.net_connections` to get per-process connections
+    - `scripts/netstat.py`_
 
   .. versionadded:: 2.1.0
 
@@ -775,24 +745,19 @@ Network
 
 .. function:: net_if_addrs()
 
-  Return the addresses associated to each :term:`NIC` (network interface card)
-  installed on the system as a dictionary whose keys are the NIC names and
-  value is a list of named tuples for each address assigned to the NIC.
-  You can have more than one address of the same family associated with each
-  interface (that's why dict values are lists).
-  Each named tuple includes 5 fields:
+  Return a dictionary mapping each :term:`NIC` to a list of named tuples
+  representing its addresses. Multiple addresses of the same family can exist
+  per interface. Each named tuple includes 5 fields (addresses may be
+  ``None``):
 
   - **family**: the address family, either :data:`socket.AF_INET`,
-    :data:`socket.AF_INET6`, :const:`psutil.AF_LINK` in case of MAC address,
-    :data:`socket.AF_UNSPEC` in case of virtual or unconfigured interfaces.
-  - **address**: the primary NIC address (may be ``None`` in case of virtual
-    or unconfigured interfaces).
-  - **netmask**: the netmask address (may be ``None``).
-  - **broadcast**: the broadcast address. May be ``None``. Always ``None`` on
-    Windows.
-  - **ptp**: stands for "point to point"; it's the destination address on a
-    point to point interface (typically a VPN). *broadcast* and *ptp* are
-    mutually exclusive. May be ``None``. Always ``None`` on Windows.
+    :data:`socket.AF_INET6`, :const:`psutil.AF_LINK` (a MAC address) or
+    :data:`socket.AF_UNSPEC` (a virtual or unconfigured NIC).
+  - **address**: the primary NIC address
+  - **netmask**: the netmask address
+  - **broadcast**: the broadcast address; always ``None`` on Windows
+  - **ptp**: a "point to point" address (typically a VPN); always ``None`` on
+    Windows
 
   .. code-block:: pycon
 
@@ -821,24 +786,16 @@ Network
 
 .. function:: net_if_stats()
 
-  Return information about each :term:`NIC` (network interface card) installed on the
-  system as a dictionary whose keys are the NIC names and value is a named tuple
-  with the following fields:
+  Return a dictionary mapping each :term:`NIC` to a named tuple with the
+  following fields:
 
-  - **isup**: a bool indicating whether the NIC is up and running (meaning
-    ethernet cable or Wi-Fi is connected).
-  - **duplex**: the duplex communication type;
-    it can be either :const:`NIC_DUPLEX_FULL`, :const:`NIC_DUPLEX_HALF` or
+  - **isup**: whether the NIC is up and running (bool).
+  - **duplex**: :const:`NIC_DUPLEX_FULL`, :const:`NIC_DUPLEX_HALF` or
     :const:`NIC_DUPLEX_UNKNOWN`.
-  - **speed**: the NIC speed expressed in megabits (Mbps), if it can't be
-    determined (e.g. 'localhost') it will be set to ``0``.
-  - **mtu**: NIC's maximum transmission unit expressed in bytes.
-  - **flags**: a string of comma-separated flags on the interface (may be an empty string).
-    Possible flags are: ``up``, ``broadcast``, ``debug``, ``loopback``,
-    ``pointopoint``, ``notrailers``, ``running``, ``noarp``, ``promisc``,
-    ``allmulti``, ``master``, ``slave``, ``multicast``, ``portsel``,
-    ``dynamic``, ``oactive``, ``simplex``, ``link0``, ``link1``, ``link2``,
-    and ``d2`` (some flags are only available on certain platforms).
+  - **speed**: NIC speed in megabits (Mbps); ``0`` if undetermined.
+  - **mtu**: maximum transmission unit in bytes.
+  - **flags**: a comma-separated string of interface flags (e.g.
+    ``"up,broadcast,running,multicast"``); may be an emty string.
 
   .. code-block:: pycon
 
@@ -1019,7 +976,7 @@ Functions
 
   Return a sorted list of current running PIDs.
   To iterate over all processes and avoid race conditions :func:`process_iter`
-  should be preferred, see :ref:`performance section <perf-pids>`.
+  should be preferred, see :ref:`perf-process-iter`.
 
   .. code-block:: pycon
 
@@ -1043,13 +1000,15 @@ Functions
   Cache can optionally be cleared via ``process_iter.cache_clear()``.
 
   *attrs* and *ad_value* have the same meaning as in :meth:`Process.as_dict`.
+
   If *attrs* is specified, :meth:`Process.as_dict` is called internally and
   the results are cached so that subsequent method calls (e.g.
   :meth:`Process.name`, :meth:`Process.status`) return the cached values
-  instead of issuing new system calls.
+  instead of issuing new system calls. See :attr:`Process.attrs` for a
+  list of valid *attrs* names.
+
   If a method raises :exc:`AccessDenied` during pre-fetch, it will return
-  *ad_value* (default ``None``) instead of raising. If *attrs* is an empty list
-  it will retrieve all process info (slow).
+  *ad_value* (default ``None``) instead of raising.
 
   Processes are returned sorted by PID.
 
@@ -1063,6 +1022,13 @@ Functions
      2 kthreadd root
      3 ksoftirqd/0 root
      ...
+
+  All process *attrs* except slow ones:
+
+  .. code-block:: pycon
+
+    >>> for p in psutil.process_iter(psutil.Process.attrs - {'memory_footprint', 'memory_maps'}):
+    ...     print(p)
 
   Clear internal cache:
 
@@ -1093,6 +1059,10 @@ Functions
      method calls (e.g. ``p.name()``, ``p.status()``) return the
      cached values instead of making new system calls. The :attr:`Process.info`
      dict is deprecated in favor of this new approach.
+
+  .. versionchanged:: 8.0.0
+     passing an empty list (``attrs=[]``) to mean "all attributes" is
+     deprecated; use :attr:`Process.attrs` instead.
 
 .. function:: pid_exists(pid)
 
@@ -1195,15 +1165,15 @@ Process class
   :meth:`threads` method).
   When calling methods of this class, always be prepared to catch
   :exc:`NoSuchProcess` and :exc:`AccessDenied` exceptions.
-  :func:`hash` builtin can be used against instances of this class in order to
-  identify a process univocally over time (the hash is determined by mixing
-  process PID + creation time). As such it can also be used with :class:`set`.
+  :func:`hash` builtin can be used against instances of this class to identify
+  a process univocally over time (the hash is determined by mixing process PID
+  + creation time). As such it can also be used with :class:`set`.
 
   .. note::
 
-    in order to efficiently fetch more than one information about the process
-    at the same time, make sure to use either :meth:`oneshot` context manager
-    or :meth:`as_dict` utility method.
+    to efficiently fetch multiple attributes about the process at the same
+    time, use either :meth:`oneshot` context manager or :meth:`as_dict`
+    utility method.
 
   .. note::
 
@@ -1218,19 +1188,13 @@ Process class
 
   .. method:: oneshot()
 
-    Utility context manager which considerably speeds up the retrieval of
-    multiple process attributes at the same time.
-    Internally different process info (e.g. :meth:`name`, :meth:`ppid`,
-    :meth:`uids`, :meth:`create_time`, ...) may be fetched by using the same
-    routine, but only one value is returned and the others are discarded.
-    When using this context manager the internal routine is executed once (in
-    the example below on :meth:`name`); the value of interest is returned and
-    the others are cached.
-    The subsequent calls sharing the same internal routine will return the
-    cached value.
-    The cache is cleared when exiting the context manager block.
-    The advice is to use this every time you retrieve more than one attribute
-    about the process. If you're lucky, you'll get a hell of a speedup.
+    Context manager which speeds up the retrieval of multiple process
+    attributes at the same time. Internally, many attributes (e.g.
+    :meth:`name`, :meth:`ppid`, :meth:`uids`, :meth:`create_time`, ...)
+    share the same system call. This context manager executes each system call
+    once and caches the results. Subsequent calls return cached values.
+    The cache is cleared when exiting the context manager block. Use this
+    every time you retrieve more than one attribute about the process.
 
     .. code-block:: pycon
 
@@ -1309,6 +1273,25 @@ Process class
   .. attribute:: pid
 
     The process PID. This is the only (read-only) attribute of the class.
+
+  .. attribute:: attrs
+
+    A ``frozenset`` of strings representing the valid attribute names accepted
+    by :meth:`as_dict` and :func:`process_iter`. It defaults to all read-only
+    :class:`Process` method names, minus the utility methods such as
+    :meth:`as_dict`, :meth:`children`, etc.
+
+    .. code-block:: pycon
+
+       >>> import psutil
+       >>> psutil.Process.attrs
+       frozenset({'cmdline', 'cpu_num', 'cpu_percent', ...})
+       >>> # all attrs
+       >>> psutil.process_iter(attrs=psutil.Process.attrs)
+       >>> # all attrs except 'net_connections'
+       >>> psutil.process_iter(attrs=psutil.Process.attrs - {"net_connections"})
+
+    .. versionadded:: 8.0.0
 
   .. attribute:: info
 
@@ -1407,14 +1390,11 @@ Process class
 
     .. method:: as_dict(attrs=None, ad_value=None)
 
-      Utility method retrieving multiple process information as a dictionary.
-      If *attrs* is specified it must be a list of strings reflecting available
-      :class:`Process` class's attribute names. Here's a list of possible string
-      values:
-      ``'cmdline'``, ``'net_connections'``, ``'cpu_affinity'``, ``'cpu_num'``, ``'cpu_percent'``, ``'cpu_times'``, ``'create_time'``, ``'cwd'``, ``'environ'``, ``'exe'``, ``'gids'``, ``'io_counters'``, ``'ionice'``, ``'memory_footprint'``, ``'memory_full_info'``, ``'memory_info'``, ``'memory_info_ex'``, ``'memory_maps'``, ``'memory_percent'``, ``'name'``, ``'nice'``, ``'num_ctx_switches'``, ``'num_fds'``, ``'num_handles'``, ``'num_threads'``, ``'open_files'``, ``'pid'``, ``'ppid'``, ``'status'``, ``'terminal'``, ``'threads'``, ``'uids'``, ``'username'``.
+      Utility method returning multiple process information as a dictionary.
 
-      If *attrs* argument is not passed all public read only attributes are
-      assumed.
+      If *attrs* is specified, it must be a collection of strings reflecting
+      available :class:`Process` class's attribute names. If not passed all
+      :attr:`Process.attrs` names are assumed.
 
       *ad_value* is the value which gets assigned to a dict key in case
       :exc:`AccessDenied` or :exc:`ZombieProcess` exception is raised when
@@ -1431,10 +1411,10 @@ Process class
        >>> p = psutil.Process()
        >>> p.as_dict(attrs=['pid', 'name', 'username'])
        {'username': 'giampaolo', 'pid': 12366, 'name': 'python'}
+       >>> # all attrs except slow ones
+       >>> p.as_dict(attrs=p.attrs - {'memory_footprint', 'memory_maps'})
+       {'username': 'giampaolo', 'pid': 12366, 'name': 'python', ...}
        >>>
-       >>> # get a list of valid attrs names
-       >>> list(psutil.Process().as_dict().keys())
-       ['cmdline', 'connections', 'cpu_affinity', 'cpu_num', 'cpu_percent', 'cpu_times', 'create_time', 'cwd', 'environ', 'exe', 'gids', 'io_counters', 'ionice', 'memory_footprint', 'memory_full_info', 'memory_info', 'memory_info_ex', 'memory_maps', 'memory_percent', 'name', 'net_connections', 'nice', 'num_ctx_switches', 'num_fds', 'num_threads', 'open_files', 'pid', 'ppid', 'status', 'terminal', 'threads', 'uids', 'username']
 
     .. versionchanged:: 3.0.0
        *ad_value* is used also when incurring into :exc:`ZombieProcess`
@@ -1547,7 +1527,7 @@ Process class
     If no argument is provided it acts as a get, returning a ``(ioclass, value)``
     tuple on Linux and a *ioclass* integer on Windows.
     If *ioclass* is provided it acts as a set. In this case an additional
-    *value* can be specified on Linux only in order to increase or decrease the
+    *value* can be specified on Linux only to increase or decrease the
     I/O priority even further.
     Here's the possible platform-dependent *ioclass* values.
 
@@ -1663,7 +1643,7 @@ Process class
        >>> p.io_counters()
        pio(read_count=454556, write_count=3456, read_bytes=110592, write_bytes=0, read_chars=769931, write_chars=203)
 
-    .. availability:: Linux, BSD, Windows, AIX
+    .. availability:: Linux, Windows, BSD, AIX
 
     .. versionchanged:: 5.2.0
        added **read_chars** + **write_chars** on Linux and **other_count** +
@@ -1671,13 +1651,14 @@ Process class
 
   .. method:: num_ctx_switches()
 
-    The number of :term:`context switches <context switch>` performed by this process
+    The number of :term:`context switches <context switch>` performed by this
+    process as a ``(voluntary, involuntary)`` named tuple
     (:term:`cumulative counter`).
 
     .. note::
       (Windows, macOS) **involuntary** value is always set to 0, while
-      **voluntary** value reflect the total number of context switches (voluntary
-      + involuntary). This is a limitation of the OS.
+      **voluntary** value reflects the total number of context switches
+      (voluntary + involuntary). This is a limitation of the OS.
 
     .. versionchanged:: 5.4.1
        added AIX support.
@@ -1747,7 +1728,7 @@ Process class
   .. method:: cpu_percent(interval=None)
 
     Return a float representing the process CPU utilization as a percentage
-    which can also be ``> 100.0`` in case of a process running multiple threads
+    which can also be ``> 100.0`` if the process runs multiple threads
     on different CPUs.
     When *interval* is > ``0.0`` compares process times to system CPU times
     elapsed before and after the interval (blocking). When *interval* is ``0.0``
@@ -1769,26 +1750,9 @@ Process class
        2.9
 
     .. note::
-      the first time this method is called with interval = ``0.0`` or
-      ``None`` it will return a meaningless ``0.0`` value which you are
-      supposed to ignore.
-
-    .. note::
-      the returned value can be > 100.0 in case of a process running multiple
-      threads on different CPU cores.
-
-    .. note::
-      the returned value is explicitly *not* split evenly between all available
-      CPUs (differently from :func:`psutil.cpu_percent`).
-      This means that a busy loop process running on a system with 2 logical
-      CPUs will be reported as having 100% CPU utilization instead of 50%.
-      This was done in order to be consistent with ``top`` UNIX utility,
-      and also to make it easier to identify processes hogging CPU resources
-      independently from the number of CPUs.
-      It must be noted that ``taskmgr.exe`` on Windows does not behave like
-      this (it would report 50% usage instead).
-      To emulate Windows ``taskmgr.exe`` behavior you can do:
-      ``p.cpu_percent() / psutil.cpu_count()``.
+      the returned value is *not* split evenly between all available CPUs
+      (differently from :func:`psutil.cpu_percent`). To emulate Windows
+      ``taskmgr.exe`` behavior: ``p.cpu_percent() / psutil.cpu_count()``.
 
     .. seealso::
       - :ref:`faq_cpu_percent`
@@ -1796,16 +1760,12 @@ Process class
 
   .. method:: cpu_affinity(cpus=None)
 
-    Get or set process current
-    `CPU affinity <http://www.linuxjournal.com/article/6799?page=0,0>`_.
-    CPU affinity consists in telling the OS to run a process on a limited set
-    of CPUs only (on Linux cmdline, ``taskset`` command is typically used).
-    If no argument is passed it returns the current CPU affinity as a list
-    of integers.
-    If passed it must be a list of integers specifying the new CPUs affinity.
-    If an empty list is passed all eligible CPUs are assumed (and set).
-    On some systems such as Linux this may not necessarily mean all available
-    logical CPUs as in ``list(range(psutil.cpu_count()))``).
+    Get or set process
+    `CPU affinity <http://www.linuxjournal.com/article/6799?page=0,0>`_
+    (the set of CPUs the process is allowed to run on).
+    If no argument is passed, return the current affinity as a list of
+    integers. If passed, *cpus* must be a list of CPU integers. An empty
+    list sets affinity to all eligible CPUs.
 
     .. code-block:: pycon
 
@@ -2023,25 +1983,21 @@ Process class
 
     Return a named tuple with USS, PSS and swap memory metrics. These give
     a more accurate picture of actual memory consumption than
-    :meth:`memory_info`, as explained in this
-    `blog post <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`_
-    It works by walking the full process address space, so it is
-    considerably slower than :meth:`memory_info` and may require elevated
-    privileges.
+    :meth:`memory_info` (see this
+    `blog post <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`_).
+    It walks the full process address space, so it is slower than
+    :meth:`memory_info` and may require elevated privileges.
 
-    - **uss** *(Linux, macOS, Windows)*: aka :term:`USS`. This is the
-      memory which is unique to a process and which would be freed if the
-      process were terminated right now. The most representative metric for
-      actual memory usage.
+    - **uss** *(Linux, macOS, Windows)*: aka :term:`USS`; memory which is
+      unique to the process, and which would be freed if the process were
+      terminated right now.
 
-    - **pss** *(Linux)*: aka :term:`PSS`, is the amount of memory
-      shared with other processes, accounted in a way that the amount is
-      divided evenly between the processes that share it. I.e. if a process has
-      10 MBs all to itself, and 10 MBs shared with another process, its PSS
-      will be 15 MBs.
+    - **pss** *(Linux)*: aka :term:`PSS`; shared memory divided evenly among
+      the processes sharing it. I.e. if a process has 10 MBs all to itself, and
+      10 MBs shared with another process, its PSS will be 15 MBs.
 
-    - **swap** *(Linux)*: process memory currently in swap, counted per-mapping
-      (slower, but may be more accurate than ``memory_info_ex().swap``).
+    - **swap** *(Linux)*: process memory currently in swap, counted
+      per-mapping.
 
     Example on Linux:
 
@@ -2240,20 +2196,10 @@ Process class
        [popenfile(path='/home/giampaolo/svn/psutil/file.ext', fd=3, position=0, mode='w', flags=32769)]
 
     .. warning::
-      on Windows this method is not reliable due to some limitations of the
-      underlying Windows API which may hang when retrieving certain file
-      handles.
-      In order to work around that psutil spawns a thread to determine the file
-      handle name and kills it if it's not responding after 100ms.
-      That implies that this method on Windows is not guaranteed to enumerate
-      all regular file handles (see
-      `issue 597 <https://github.com/giampaolo/psutil/pull/597>`_).
-      Tools like ProcessHacker have the same limitation.
-
-    .. warning::
-      on BSD this method can return paths as an empty string due to a kernel
-      bug, hence it's not reliable
-      (see `issue 595 <https://github.com/giampaolo/psutil/pull/595>`_).
+      - Windows: this is not guaranteed to enumerate all file handles (see
+        :ref:`faq_open_files_windows`)
+      - BSD: can return empty-string paths due to a kernel bug (see
+        `issue 595 <https://github.com/giampaolo/psutil/pull/595>`_)
 
     .. versionchanged:: 3.1.0
        no longer hangs on Windows.
@@ -2263,57 +2209,9 @@ Process class
 
   .. method:: net_connections(kind="inet")
 
-    Return socket connections opened by process as a list of named tuples.
-    To get system-wide connections use :func:`psutil.net_connections`.
-    Every named tuple provides 6 attributes:
-
-    - **fd**: the socket file descriptor. If the connection refers to the
-      current process this may be passed to :func:`socket.fromfd` to obtain a usable
-      socket object.
-      On Windows, FreeBSD and SunOS this is always set to ``-1``.
-    - **family**: the address family, either :data:`socket.AF_INET`, :data:`socket.AF_INET6` or
-      :data:`socket.AF_UNIX`.
-    - **type**: the address type, either :data:`socket.SOCK_STREAM`, :data:`socket.SOCK_DGRAM` or
-      :data:`socket.SOCK_SEQPACKET`.
-    - **laddr**: the local address as a ``(ip, port)`` named tuple or a ``path``
-      in case of AF_UNIX sockets. For UNIX sockets see notes below.
-    - **raddr**: the remote address as a ``(ip, port)`` named tuple or an
-      absolute ``path`` in case of UNIX sockets.
-      When the remote endpoint is not connected you'll get an empty tuple
-      (AF_INET*) or ``""`` (AF_UNIX). For UNIX sockets see notes below.
-    - **status**: represents the status of a TCP connection. The return value
-      is one of the :data:`psutil.CONN_* <psutil.CONN_ESTABLISHED>` constants.
-      For UDP and UNIX sockets this is always going to be
-      :const:`psutil.CONN_NONE`.
-
-    The *kind* parameter is a string which filters for connections that fit the
-    following criteria:
-
-    +----------------+-----------------------------------------------------+
-    | Kind value     | Connections using                                   |
-    +================+=====================================================+
-    | ``'inet'``     | IPv4 and IPv6                                       |
-    +----------------+-----------------------------------------------------+
-    | ``'inet4'``    | IPv4                                                |
-    +----------------+-----------------------------------------------------+
-    | ``'inet6'``    | IPv6                                                |
-    +----------------+-----------------------------------------------------+
-    | ``'tcp'``      | TCP                                                 |
-    +----------------+-----------------------------------------------------+
-    | ``'tcp4'``     | TCP over IPv4                                       |
-    +----------------+-----------------------------------------------------+
-    | ``'tcp6'``     | TCP over IPv6                                       |
-    +----------------+-----------------------------------------------------+
-    | ``'udp'``      | UDP                                                 |
-    +----------------+-----------------------------------------------------+
-    | ``'udp4'``     | UDP over IPv4                                       |
-    +----------------+-----------------------------------------------------+
-    | ``'udp6'``     | UDP over IPv6                                       |
-    +----------------+-----------------------------------------------------+
-    | ``'unix'``     | UNIX socket (both UDP and TCP protocols)            |
-    +----------------+-----------------------------------------------------+
-    | ``'all'``      | the sum of all the possible families and protocols  |
-    +----------------+-----------------------------------------------------+
+    Same as :func:`psutil.net_connections` but for this process only (the
+    returned named tuples have no **pid** field). The *kind* parameter and
+    the same limitations apply (root may be needed on some platforms).
 
     .. code-block:: pycon
 
@@ -2326,38 +2224,6 @@ Process class
         pconn(fd=117, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=43761), raddr=addr(ip='72.14.234.100', port=80), status=<ConnectionStatus.CONN_CLOSING: 'CLOSING'>),
         pconn(fd=119, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=60759), raddr=addr(ip='72.14.234.104', port=80), status=<ConnectionStatus.CONN_ESTABLISHED: 'ESTABLISHED'>),
         pconn(fd=123, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status=<ConnectionStatus.CONN_SYN_SENT: 'SYN_SENT'>)]
-
-    .. warning::
-      on Linux, retrieving connections for certain processes requires root
-      privileges. If psutil is not run as root, those connections are silently
-      skipped instead of raising :exc:`psutil.AccessDenied`. That means
-      the returned list may be incomplete.
-
-    .. note::
-       (Linux, FreeBSD) **raddr** field for UNIX sockets is always set to an
-       empty string. This is a limitation of the OS.
-
-    .. note::
-      (Solaris) UNIX sockets are not supported.
-
-    .. note::
-       (OpenBSD) **laddr** and **raddr** fields for UNIX sockets are always set to
-       "". This is a limitation of the OS.
-
-    .. note::
-      (AIX) :exc:`psutil.AccessDenied` is always raised unless running
-      as root (lsof does the same).
-
-    .. versionchanged:: 5.3.0
-       **laddr** and **raddr** are named tuples.
-
-    .. versionchanged:: 6.0.0
-       method renamed from `connections` to `net_connections`.
-
-    .. versionchanged:: 8.0.0
-       **status** field is now a :class:`psutil.ConnectionStatus` enum member
-       instead of a plain ``str``.
-       See :ref:`migration guide <migration-8.0>`.
 
   .. method:: connections()
 
@@ -2486,7 +2352,7 @@ Process class
        return value is cached (instead of returning ``None``).
 
     .. versionchanged:: 5.7.1
-       on POSIX, in case of negative signal, return it as a human readable
+       on POSIX, if the signal is negative, return it as a human readable
        :mod:`enum`.
 
     .. versionchanged:: 7.2.2
@@ -2508,8 +2374,8 @@ Popen class
   :meth:`send_signal() <psutil.Process.send_signal()>`,
   :meth:`terminate() <psutil.Process.terminate()>`,
   :meth:`kill() <psutil.Process.kill()>`.
-  This is done in order to avoid killing another process in case its PID has
-  been reused, fixing `BPO-6973`_.
+  This is done to avoid killing another process if its PID has been reused,
+  fixing `BPO-6973`_.
 
   .. code-block:: pycon
 
@@ -2535,15 +2401,17 @@ Popen class
 C heap introspection
 --------------------
 
-The following functions provide direct access to the platform's native C heap
-allocator (such as glibc's ``malloc`` on Linux or ``jemalloc`` on BSD). They
+The following functions provide direct access to the platform's native
+:term:`heap` allocator (such as glibc's ``malloc`` on Linux or ``jemalloc``
+on BSD). They
 are low-level interfaces intended for detecting memory leaks in C extensions,
-which are usually not revealed via standard RSS/VMS metrics. These functions do
+which are usually not revealed via standard RSS / VMS metrics. These functions do
 not reflect Python object memory; they operate solely on allocations made in C
 via ``malloc()``, ``free()``, and related calls.
 
 The general idea behind these functions is straightforward: capture the state
-of the C heap before and after repeatedly invoking a function implemented in a
+of the :term:`heap` before and after repeatedly invoking a function
+implemented in a
 C extension, and compare the results. If ``heap_used`` or ``mmap_used`` grows
 steadily across iterations, the C code is likely retaining memory it should be
 releasing. This provides an allocator-level way to spot native leaks that
@@ -2596,7 +2464,7 @@ Python's memory tracking misses.
 .. function:: heap_trim()
 
   Request that the underlying allocator free any unused memory it's holding in
-  the heap (typically small ``malloc()`` allocations).
+  the :term:`heap` (typically small ``malloc()`` allocations).
 
   In practice, modern allocators rarely comply, so this is not a
   general-purpose memory-reduction tool and won't meaningfully shrink RSS in
@@ -3132,23 +3000,6 @@ Other constants
 .. _`man prlimit`: https://linux.die.net/man/2/prlimit
 .. _`psleak`: https://github.com/giampaolo/psleak
 .. _`/proc/meminfo`: https://man7.org/linux/man-pages/man5/proc_meminfo.5.html
-
-.. === scripts
-
-.. _`scripts/battery.py`: https://github.com/giampaolo/psutil/blob/master/scripts/battery.py
-.. _`scripts/cpu_distribution.py`: https://github.com/giampaolo/psutil/blob/master/scripts/cpu_distribution.py
-.. _`scripts/disk_usage.py`: https://github.com/giampaolo/psutil/blob/master/scripts/disk_usage.py
-.. _`scripts/fans.py`: https://github.com/giampaolo/psutil/blob/master/scripts/fans.py
-.. _`scripts/ifconfig.py`: https://github.com/giampaolo/psutil/blob/master/scripts/ifconfig.py
-.. _`scripts/iotop.py`: https://github.com/giampaolo/psutil/blob/master/scripts/iotop.py
-.. _`scripts/meminfo.py`: https://github.com/giampaolo/psutil/blob/master/scripts/meminfo.py
-.. _`scripts/netstat.py`: https://github.com/giampaolo/psutil/blob/master/scripts/netstat.py
-.. _`scripts/nettop.py`: https://github.com/giampaolo/psutil/blob/master/scripts/nettop.py
-.. _`scripts/pmap.py`: https://github.com/giampaolo/psutil/blob/master/scripts/pmap.py
-.. _`scripts/procinfo.py`: https://github.com/giampaolo/psutil/blob/master/scripts/procinfo.py
-.. _`scripts/procsmem.py`: https://github.com/giampaolo/psutil/blob/master/scripts/procsmem.py
-.. _`scripts/sensors.py`: https://github.com/giampaolo/psutil/blob/master/scripts/sensors.py
-.. _`scripts/temperatures.py`: https://github.com/giampaolo/psutil/blob/master/scripts/temperatures.py
 
 .. === Windows API
 

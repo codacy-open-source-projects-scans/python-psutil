@@ -1,4 +1,5 @@
 .. currentmodule:: psutil
+.. include:: _links.rst
 
 Changelog
 =========
@@ -14,15 +15,17 @@ Changelog
 
 Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
 :gh:`2764`, :gh:`2767`, :gh:`2768`, :gh:`2769`, :gh:`2771`, :gh:`2774`,
-:gh:`2775`, :gh:`2781`, :gh:`2787`, :gh:`2739`, :gh:`2790`)
+:gh:`2775`, :gh:`2781`, :gh:`2787`, :gh:`2739`, :gh:`2790`, :gh:`2797`,
+:gh:`2801`)
 
 - Split docs from a single HTML file into multiple new sections:
 
   - :doc:`/adoption <adoption>`: notable software using psutil
-  - :doc:`/api-overview <api-overview>`: show entire API via REPL usage examples
   - :doc:`/alternatives <alternatives>`: list of alternative Python libraries and tools that overlap with psutil.
+  - :doc:`/api-overview <api-overview>`: show entire API via REPL usage examples
   - :doc:`/credits <credits>`: list contributors and donors (was old ``CREDITS`` in root dir)
   - :doc:`/faq <faq>`: extended FAQ section
+  - :doc:`/funding <funding>`: list funding methods and current sponsors
   - :doc:`/glossary <glossary>`: core concepts explained
   - :doc:`/install <install>`: (was old ``INSTALL.rst`` in root dir)
   - :doc:`/migration <migration>`: explain how to migrate to newer psutil versions that break backward compatibility
@@ -41,6 +44,7 @@ Doc improvements (:gh:`2761`, :gh:`2757`, :gh:`2760`, :gh:`2745`, :gh:`2763`,
 
 - Usability:
 
+  - Improve overall doc clarity and shorten long sentences.
   - Show a clickable COPY button to copy code snippets.
   - Show ``psutil.`` prefix for all APIs.
   - Greatly improved :func:`virtual_memory` doc and many other APIs.
@@ -77,15 +81,25 @@ Type hints / enums:
   ``psutil.STATUS_RUNNING``) remain the primary API, and are now aliases
   for the corresponding enum members.
 
-- New APIs:
+New APIs:
 
+- :gh:`2798`: new :attr:`Process.attrs` class attribute, a ``frozenset`` of
+  valid attribute names accepted by :meth:`Process.as_dict` and
+  :func:`process_iter`. Replaces the old pattern of calling
+  ``list(psutil.Process().as_dict().keys())``.
+  Passing an empty list to :func:`process_iter` (``attrs=[]``) to mean
+  "retrieve all attributes" is **deprecated**. Use
+  ``attrs=Process.attrs`` instead.
+  See :ref:`migration guide <migration-8.0>`.
 - :gh:`1541`: New :meth:`Process.page_faults` method, returning a ``(minor,
   major)`` named tuple.
 - Reorganization of process memory APIs (:gh:`2731`, :gh:`2736`, :gh:`2723`,
   :gh:`2733`).
 
-  - Add new :meth:`Process.memory_info_ex` method, which extends
-    :meth:`Process.memory_info` with platform-specific metrics:
+  - Add new :meth:`Process.memory_info_ex` method (not to be confused
+    with the old method with the same name, deprecated in 4.0 and
+    removed in 7.0), which extends :meth:`Process.memory_info` with
+    platform-specific metrics:
 
     - Linux: *peak_rss*, *peak_vms*, *rss_anon*, *rss_file*, *rss_shmem*,
       *swap*, *hugetlb*
@@ -119,7 +133,7 @@ Type hints / enums:
     :meth:`Process.memory_footprint` instead.
     See :ref:`migration guide <migration-8.0>`.
 
-Others
+Others:
 
 - :gh:`2747`: the field order of the named tuple returned by :func:`cpu_times`
   has been normalized on all platforms, and the first 3 fields are now always
@@ -146,6 +160,8 @@ Others
 - :gh:`2788`: git tags renamed from ``release-X.Y.Z`` to ``vX.Y.Z`` (e.g.
   ``release-7.2.2`` → ``v7.2.2``). Old tags are kept for backward
   compatibility.
+- :gh:`2799`: :meth:`Process.as_dict` now returns a dict with keys sorted
+  alphabetically when *attrs* is not specified.
 
 **Bug fixes**
 
@@ -1066,7 +1082,7 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
   ``min`` and ``max`` fields can't be determined. (patch by Alex Manuskin)
 - :gh:`1462`, [Linux]: (tests) make tests invariant to ``LANG`` setting (patch
   by Benjamin Drung)
-- :gh:`1463`: `cpu_distribution.py`_ script was broken.
+- :gh:`1463`: `scripts/cpu_distribution.py`_ was broken.
 - :gh:`1470`, [Linux]: :func:`disk_partitions`: fix corner case when
   ``/etc/mtab`` doesn't exist.  (patch by Cedric Lamoriniere)
 - :gh:`1471`, [SunOS]: :meth:`Process.name` and :meth:`Process.cmdline` can
@@ -1740,7 +1756,7 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
   values are more precise and match ``free`` cmdline utility.  ``available``
   also takes into account LCX containers preventing ``available`` to overflow
   ``total``.
-- :gh:`891`: `procinfo.py`_ script has been updated and provides a lot more
+- :gh:`891`: `scripts/procinfo.py`_ has been updated and provides a lot more
   info.
 
 **Bug fixes**
@@ -1887,7 +1903,7 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
 - :gh:`760`: expose OS constants (``psutil.LINUX``, ``psutil.OSX``, etc.)
 - :gh:`756`, [Linux]: :func:`disk_io_counters` return 2 new fields:
   ``read_merged_count`` and ``write_merged_count``.
-- :gh:`762`: new `procsmem.py`_ script.
+- :gh:`762`: add `scripts/procsmem.py`_.
 
 **Bug fixes**
 
@@ -2147,10 +2163,10 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
 **Enhancements**
 
 - :gh:`521`: drop support for Python 2.4 and 2.5.
-- :gh:`553`: new `pstree.py`_ script.
+- :gh:`553`: add `scripts/pstree.py`_.
 - :gh:`564`: C extension version mismatch in case the user messed up with
   psutil installation or with sys.path is now detected at import time.
-- :gh:`568`: new `pidof.py`_ script.
+- :gh:`568`: add `scripts/pidof.py`_.
 - :gh:`569`, [FreeBSD]: add support for :meth:`Process.cpu_affinity` on
   FreeBSD.
 
@@ -2190,7 +2206,7 @@ Version 6.0.0 introduces some changes which affect backward compatibility:
 - :gh:`492`: use ``tox`` to run tests on multiple Python versions.  (patch by
   msabramo)
 - :gh:`505`, [Windows]: distribution as wheel packages.
-- :gh:`511`: add `ps.py`_ script.
+- :gh:`511`: add `scripts/ps.py`_.
 
 **Bug fixes**
 
@@ -2481,7 +2497,7 @@ cases accessing the old names will work but it will cause a
   percentages.
 - :gh:`408`: ``STATUS_*`` and ``CONN_*`` constants don't properly serialize on
   JSON.
-- :gh:`411`, [Windows]: `disk_usage.py`_ may pop-up a GUI error.
+- :gh:`411`, [Windows]: `scripts/disk_usage.py`_ may pop-up a GUI error.
 - :gh:`413`, [Windows]: :meth:`Process.memory_info` leaks memory.
 - :gh:`414`, [Windows]: :meth:`Process.exe` on Windows XP may raise
   ``ERROR_INVALID_PARAMETER``.
@@ -2660,7 +2676,7 @@ cases accessing the old names will work but it will cause a
   :meth:`Process.memory_percent`, :meth:`Process.cpu_times`,
   :meth:`Process.cpu_percent`,
   :meth:`Process.num_threads`.
-- :gh:`300`: add `pmap.py`_ script.
+- :gh:`300`: add `scripts/pmap.py`_.
 - :gh:`301`: :func:`process_iter` now yields processes sorted by their PIDs.
 - :gh:`302`: per-process number of voluntary and involuntary context switches
   (:meth:`Process.num_ctx_switches`).
@@ -2672,12 +2688,12 @@ cases accessing the old names will work but it will cause a
   :meth:`Process.memory_info`, :meth:`Process.memory_percent`,
   :meth:`Process.num_handles`,
   :meth:`Process.io_counters`.
-- :gh:`305`: add `netstat.py`_ script.
+- :gh:`305`: add `scripts/netstat.py`_.
 - :gh:`311`: system memory functions has been refactorized and rewritten and
   now provide a more detailed and consistent representation of the system
   memory. Added new :func:`virtual_memory` and :func:`swap_memory`
   functions. All old memory-related functions are deprecated. Also two new
-  example scripts were added:  `free.py`_ and `meminfo.py`_.
+  example scripts were added:  `scripts/free.py`_ and `scripts/meminfo.py`_.
 - :gh:`312`: ``net_io_counters()`` named tuple includes 4 new fields: ``errin``,
   ``errout``, ``dropin`` and ``dropout``, reflecting the number of packets
   dropped and with errors.
@@ -2834,13 +2850,13 @@ cases accessing the old names will work but it will cause a
   the function return immediately.
 - :gh:`206`: disk I/O counters (:func:`disk_io_counters`). (macOS and Windows
   patch by Jeremy Whitlock)
-- :gh:`213`: add `iotop.py`_ script.
+- :gh:`213`: add `scripts/iotop.py`_.
 - :gh:`217`: :meth:`Process.connections` now has a ``kind`` argument to
   filter for connections with different criteria.
 - :gh:`221`, [FreeBSD]: :meth:`Process.open_files` has been rewritten in C
   and no longer relies on ``lsof``.
-- :gh:`223`: add `top.py`_ script.
-- :gh:`227`: add `nettop.py`_ script.
+- :gh:`223`: add `scripts/top.py`_.
+- :gh:`227`: add `scripts/nettop.py`_.
 
 **Bug fixes**
 
@@ -3107,19 +3123,3 @@ cases accessing the old names will work but it will cause a
   raises
   :exc:`AccessDenied` exception instead of ``WindowsError``.
 - :gh:`30`: psutil.get_pid_list() was returning two 0 PIDs.
-
-
-.. _`cpu_distribution.py`: https://github.com/giampaolo/psutil/blob/master/scripts/cpu_distribution.py
-.. _`disk_usage.py`: https://github.com/giampaolo/psutil/blob/master/scripts/disk_usage.py
-.. _`free.py`: https://github.com/giampaolo/psutil/blob/master/scripts/free.py
-.. _`iotop.py`: https://github.com/giampaolo/psutil/blob/master/scripts/iotop.py
-.. _`meminfo.py`: https://github.com/giampaolo/psutil/blob/master/scripts/meminfo.py
-.. _`netstat.py`: https://github.com/giampaolo/psutil/blob/master/scripts/netstat.py
-.. _`nettop.py`: https://github.com/giampaolo/psutil/blob/master/scripts/nettop.py
-.. _`pidof.py`: https://github.com/giampaolo/psutil/blob/master/scripts/pidof.py
-.. _`pmap.py`: https://github.com/giampaolo/psutil/blob/master/scripts/pmap.py
-.. _`procinfo.py`: https://github.com/giampaolo/psutil/blob/master/scripts/procinfo.py
-.. _`procsmem.py`: https://github.com/giampaolo/psutil/blob/master/scripts/procsmem.py
-.. _`ps.py`: https://github.com/giampaolo/psutil/blob/master/scripts/ps.py
-.. _`pstree.py`: https://github.com/giampaolo/psutil/blob/master/scripts/pstree.py
-.. _`top.py`: https://github.com/giampaolo/psutil/blob/master/scripts/top.py
