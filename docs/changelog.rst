@@ -172,6 +172,10 @@ Others:
   compatibility.
 - :gh:`2799`: :meth:`Process.as_dict` now returns a dict with keys sorted
   alphabetically when *attrs* is not specified.
+- :gh:`2805`, [BSD]: remove ``procfs`` dependency on NetBSD for
+  :func:`cpu_stats` and :func:`virtual_memory`; values are now retrieved
+  via the ``sysctl(9)`` and ``uvm(9)`` kernel APIs instead. (patch by
+  Santhosh Raju)
 
 **Bug fixes**
 
@@ -209,6 +213,16 @@ Others:
 - :gh:`2795`, [FreeBSD]: fix :func:`cpu_freq` failing with
   ``RuntimeError: sysctlbyname('dev.cpu.0.freq_levels') size mismatch`` on some
   systems.
+- :gh:`2811`, [OpenBSD]: :func:`virtual_memory` :field:`shared` field returned
+  pages instead of bytes, plus it was overvalued (summed shared ``virtual`` +
+  ``real``, now we only return ``real``).
+- :gh:`2813`, [OpenBSD]: :func:`virtual_memory` :field:`buffers` was always 0.
+  Now it returns a meaningful value, which is the same as :field:`cached`.
+  That's because OpenBSD does not distinguish between the 2.
+- :gh:`2814`, [NetBSD]: :func:`virtual_memory` :field:`cached` is overvalued,
+  since it includes anonymous pages.
+- :gh:`2815`, [OpenBSD]: :func:`virtual_memory` :field:`shared` was overvalued
+  (summed shared ``virtual`` + ``real``, now we only return ``real``).
 
 7.2.3 — 2026-02-08
 ^^^^^^^^^^^^^^^^^^
@@ -381,7 +395,7 @@ Others:
   (patch by Julien Stephan)
 - :gh:`2586`, [macOS], [CRITICAL]: fixed different places in C code which can
   trigger a segfault.
-- :gh:`2604`, [Linux]: :func:`virtual_memory` "used" memory does not match
+- :gh:`2604`, [Linux]: :func:`virtual_memory` :field:`used` field does not match
   recent versions of ``free`` CLI utility.  (patch by Isaac K. Ko)
 - :gh:`2605`, [Linux]: :func:`sensors_battery` reports a negative amount for
   seconds left.
