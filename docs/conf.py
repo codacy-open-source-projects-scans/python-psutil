@@ -35,10 +35,10 @@ extensions = [
     "sphinx_copybutton",
     # custom extensions in _ext/ dir
     "availability",
-    "add_home_link",
     "changelog_anchors",
     "check_python_syntax",
     "field_role",
+    "genindex_filter",
 ]
 
 # =====================================================================
@@ -73,7 +73,6 @@ exclude_patterns = ["_build"]
 # =====================================================================
 
 html_title = PROJECT_NAME
-html_logo = "_static/images/logo-psutil.svg"  # shown in the sidebar
 html_favicon = "_static/images/favicon.svg"
 html_last_updated_fmt = "%b %d, %Y"  # shown in the footer
 
@@ -90,6 +89,7 @@ copybutton_exclude = ".linenos, .gp"
 html_theme = "sphinx_rtd_theme"
 
 if html_theme == "sphinx_rtd_theme":
+    html_theme_options = {"collapse_navigation": False}
     templates_path = ["_templates", "_static/images"]
     pygments_style = "monokai"  # https://pygments.org/styles/
     html_css_files = [
@@ -100,4 +100,5 @@ if html_theme == "sphinx_rtd_theme":
         "js/external-urls.js",
         ("js/theme-toggle.js", {"defer": "defer"}),
         ("js/sidebar-close.js", {"defer": "defer"}),
+        ("js/search-shortcuts.js", {"defer": "defer"}),
     ]

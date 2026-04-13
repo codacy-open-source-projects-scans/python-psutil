@@ -1,18 +1,12 @@
 {% extends "!layout.html" %}
-{% block extrahead %}
-{{ super() }}
 
+{% block htmltitle %}
 <!-- apply saved theme before first paint to avoid flash -->
 <script>
   (function () {
     var html = document.documentElement;
-
-    // suppress transitions during initial load
     html.classList.add('no-transition');
-    if (localStorage.getItem('psutil-theme') === 'dark')
-      html.setAttribute('data-theme', 'dark');
-
-    // re-enable transitions after two animation frames
+    html.setAttribute('data-theme', localStorage.getItem('psutil-theme') || 'light');
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         html.classList.remove('no-transition');
@@ -20,6 +14,15 @@
     });
   })();
 </script>
+{{ super() }}
+{% endblock %}
+
+{% block extrabody %}
+{% include "topbar.html" %}
+{% endblock %}
+
+{% block extrahead %}
+{{ super() }}
 
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-G7374TFB11"></script>
@@ -28,5 +31,25 @@
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'G-G7374TFB11');
+</script>
+
+<script>
+  // Theme toggle button
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('theme-toggle');
+    var icon = document.getElementById('theme-icon');
+    function updateIcon() {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      icon.className = dark ? 'fa fa-sun-o' : 'fa fa-moon-o';
+    }
+    updateIcon();
+    btn.addEventListener('click', function () {
+      var html = document.documentElement;
+      var dark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', dark ? 'light' : 'dark');
+      localStorage.setItem('psutil-theme', dark ? 'light' : 'dark');
+      updateIcon();
+    });
+  });
 </script>
 {% endblock %}
