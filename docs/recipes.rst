@@ -251,6 +251,11 @@ Kill a process tree (including grandchildren):
       assert pid != os.getpid(), "I won't kill myself!"
       parent = psutil.Process(pid)
       children = parent.children(recursive=True)
+      # Reverse the list so that descendants are killed before
+      # their ancestors (bottom-up order). ``children()`` returns
+      # processes in top-down order; reversing ensures a grandchild
+      # is terminated before its parent.
+      children.reverse()
       if include_parent:
           children.append(parent)
       for p in children:
@@ -262,6 +267,24 @@ Kill a process tree (including grandchildren):
           children, timeout=timeout, callback=on_terminate
       )
       return (gone, alive)
+
+On Unix, if you started the subprocess with ``subprocess.Popen`` you can often
+use the stdlib ``os.killpg()`` instead of this recipe. Create the process with
+``process_group=0`` so that it gets its own process group, then call
+``os.killpg(pgid, sig)``. This is simpler, does not require psutil, and still
+cleans up all descendants even when an intermediate process has exited::
+
+    import os
+    import signal
+    import subprocess
+
+    proc = subprocess.Popen(["cmd", "arg1"], process_group=0)
+    # ... later:
+    os.killpg(proc.pid, signal.SIGTERM)
+
+This approach does not work on Windows (``os.killpg`` is not available) and it
+only works for PIDs that you started yourself as a new process group. For
+arbitrary PIDs, use the psutil recipe above.
 
 -------------------------------------------------------------------------------
 
@@ -362,27 +385,8 @@ System
 ------
 
 All APIs returning amounts (memory, disk, network I/O) express them in bytes.
-This ``bytes2human()`` utility function used in the examples below converts
-them to a human-readable string:
-
-.. code-block:: python
-
-  def bytes2human(n):
-      """
-      >>> bytes2human(10000)
-      '9.8K'
-      >>> bytes2human(100001221)
-      '95.4M'
-      """
-      symbols = ("K", "M", "G", "T", "P", "E", "Z", "Y")
-      prefix = {}
-      for i, s in enumerate(symbols):
-          prefix[s] = 1 << (i + 1) * 10
-      for s in reversed(symbols):
-          if abs(n) >= prefix[s]:
-              value = float(n) / prefix[s]
-              return "{:.1f}{}".format(value, s)
-      return "{}B".format(n)
+The examples below use :func:`psutil.bytes2human` to convert them to a
+human-readable string.
 
 CPU
 ^^^
@@ -425,7 +429,7 @@ it just means the system is moving previously evicted pages back into RAM. High
           sin  = after.sin  - before.sin
           sout = after.sout - before.sout
           print("swap-in={}/s  swap-out={}/s  used={}%".format(
-              bytes2human(sin), bytes2human(sout), after.percent))
+              psutil.bytes2human(sin), psutil.bytes2human(sout), after.percent))
           before = after
 
 .. code-block:: none
@@ -451,7 +455,10 @@ Show real-time disk I/O:
           after = psutil.disk_io_counters()
           r = after.read_bytes - before.read_bytes
           w = after.write_bytes - before.write_bytes
-          print("Read: {}/s, Write: {}/s".format(bytes2human(r), bytes2human(w)))
+          print("Read: {}/s, Write: {}/s".format(
+              psutil.bytes2human(r),
+              psutil.bytes2human(w))
+          )
 
 .. code-block:: none
 
@@ -501,7 +508,9 @@ Show real-time network I/O per interface:
               r = after[iface].bytes_recv - before[iface].bytes_recv
               print(
                   "{:<10} sent={:<10} recv={}".format(
-                      iface, bytes2human(s) + "/s", bytes2human(r) + "/s"
+                      iface,
+                      psutil.bytes2human(s) + "/s",
+                      psutil.bytes2human(r) + "/s"
                   )
               )
           print()

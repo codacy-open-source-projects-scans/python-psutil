@@ -8,6 +8,8 @@ full :doc:`API reference <api>`.
 System related functions
 ------------------------
 
+.. _api-overview-cpu:
+
 CPU
 ^^^
 
@@ -63,6 +65,8 @@ CPU
     (3.14, 3.89, 4.67)
     >>>
 
+.. _api-overview-memory:
+
 Memory
 ^^^^^^
 
@@ -91,6 +95,8 @@ Memory
           sout=677842944)
     >>>
 
+.. _api-overview-disks:
+
 Disks
 ^^^^^
 
@@ -116,6 +122,8 @@ Disks
             write_merged_count=812396,
             busy_time=4523412)
     >>>
+
+.. _api-overview-network:
 
 Network
 ^^^^^^^
@@ -204,6 +212,8 @@ Network
                         flags='up,broadcast,running,multicast')}
     >>>
 
+.. _api-overview-sensors:
+
 Sensors
 ^^^^^^^
 
@@ -238,6 +248,8 @@ Other system info
     >>> psutil.boot_time()
     1365519115.0
     >>>
+
+.. _api-overview-processes:
 
 Processes
 ---------
@@ -386,22 +398,17 @@ Memory
     >>> p.memory_info()
     pmem(rss=3164160, vms=4410163, shared=897433, text=302694, data=2422374)
     >>>
-    >>> p.memory_info_ex()
-    pmem_ex(rss=3164160,
-            vms=4410163,
-            shared=897433,
-            text=302694,
-            data=2422374,
-            peak_rss=4172190,
-            peak_vms=6399001,
-            rss_anon=2266726,
-            rss_file=897433,
-            rss_shmem=0,
-            swap=0,
-            hugetlb=0)
+    >>> p.memory_extras()
+    pmem_extras(peak_rss=4172190,
+                peak_vms=6399001,
+                rss_anon=2266726,
+                rss_file=897433,
+                rss_shmem=0,
+                swap_anon=0,
+                locked=0)
     >>>
     >>> p.memory_percent()
-    0.7823
+    0.78
     >>>
     >>> p.memory_footprint()  # "real" USS memory usage
     pfootprint(uss=2355200, pss=2483712, swap=0)

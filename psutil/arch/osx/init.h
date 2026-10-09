@@ -21,7 +21,6 @@ int psutil_sysctl_procargs(pid_t pid, char *procargs, size_t *argmax);
 int psutil_proc_pidinfo(
     pid_t pid, int flavor, uint64_t arg, void *pti, int size
 );
-int psutil_task_for_pid(pid_t pid, mach_port_t *task);
 struct proc_fdinfo *psutil_proc_list_fds(pid_t pid, int *num_fds);
 
 PyObject *psutil_boot_time(PyObject *self, PyObject *args);
@@ -33,7 +32,6 @@ PyObject *psutil_cpu_times(PyObject *self, PyObject *args);
 PyObject *psutil_disk_io_counters(PyObject *self, PyObject *args);
 PyObject *psutil_disk_partitions(PyObject *self, PyObject *args);
 PyObject *psutil_disk_usage_used(PyObject *self, PyObject *args);
-PyObject *psutil_has_cpu_freq(PyObject *self, PyObject *args);
 PyObject *psutil_heap_info(PyObject *self, PyObject *args);
 PyObject *psutil_heap_trim(PyObject *self, PyObject *args);
 PyObject *psutil_net_io_counters(PyObject *self, PyObject *args);
@@ -42,8 +40,8 @@ PyObject *psutil_proc_cmdline(PyObject *self, PyObject *args);
 PyObject *psutil_proc_cwd(PyObject *self, PyObject *args);
 PyObject *psutil_proc_environ(PyObject *self, PyObject *args);
 PyObject *psutil_proc_exe(PyObject *self, PyObject *args);
-PyObject *psutil_proc_memory_info_ex(PyObject *self, PyObject *args);
-PyObject *psutil_proc_memory_uss(PyObject *self, PyObject *args);
+PyObject *psutil_proc_memory_extras(PyObject *self, PyObject *args);
+PyObject *psutil_proc_memory_footprint(PyObject *self, PyObject *args);
 PyObject *psutil_proc_name(PyObject *self, PyObject *args);
 PyObject *psutil_proc_net_connections(PyObject *self, PyObject *args);
 PyObject *psutil_proc_num_fds(PyObject *self, PyObject *args);

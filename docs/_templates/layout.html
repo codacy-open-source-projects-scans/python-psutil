@@ -1,35 +1,69 @@
-{% extends "!layout.html" %}
+{#-
+  psutil-sphinx-theme: page layout.
+
+  Skeleton: topbar / left sidebar / main column (article + right
+  sidebar) / prev-next / footer. Each chunk lives in its own include
+  to keep this file scan-able. Built on Sphinx's `basic` theme,
+  overriding only the blocks needed to assemble the grid.
+-#}
+{% extends "basic/layout.html" %}
+
+{#- Bumping this brings the banner back for anyone who dismissed the
+    previous message. -#}
+{% set banner_id = 'dev' %}
 
 {% block htmltitle %}
-<!-- apply saved theme before first paint to avoid flash -->
-<script>
-  (function () {
-    var html = document.documentElement;
-    html.classList.add('no-transition');
-    html.setAttribute('data-theme', localStorage.getItem('psutil-theme') || 'light');
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        html.classList.remove('no-transition');
-      });
-    });
-  })();
-</script>
+{%- if pagename == root_doc -%}
+<title>{{ _('psutil: Process and System Utilities for Python') }}</title>
+{%- else -%}
 {{ super() }}
+{%- endif -%}
 {% endblock %}
-
-{% block extrabody %}
-{% include "topbar.html" %}
-{% endblock %}
-
 {% block extrahead %}
 {{ super() }}
 
-{#- Atom feed autodiscovery: this lets feed readers and RSS browser
-    extensions find the blog feed automatically. #}
-<link rel="alternate" type="application/atom+xml"
-      title="{{ project }} blog" href="{{ pathto(ablog.blog_path ~ '/atom', 1) }}.xml">
+{%- set _parts = pagename.split('/') %}
+{%- set _collections = ['blog/tag', 'blog/category', 'blog/author',
+                        'blog/archive', 'blog/drafts'] %}
+{%- set _year = _parts | length == 2 and _parts[0] == 'blog'
+                and _parts[1].isdigit() %}
+{%- if pagename in ['genindex', 'py-modindex', '404']
+       or _parts[:2] | join('/') in _collections
+       or _year %}
+<meta name="robots" content="noindex">
+{%- endif %}
 
-<!-- Google tag (gtag.js) -->
+{# Larger icon for iOS home-screen / share sheet. #}
+<link rel="apple-touch-icon" href="{{ pathto('_static/images/logo-psutil.png', 1) }}">
+
+<script>
+(function() {
+    const html = document.documentElement;
+    html.classList.add('no-transition');
+    // Keeps an already-dismissed banner from flashing.
+    if (localStorage.getItem('psutil-banner') === '{{ banner_id }}') {
+        html.classList.add('site-banner-dismissed');
+    }
+    const saved = localStorage.getItem('psutil-sphinx-theme');
+    const theme = saved || (
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+    );
+    html.setAttribute('data-theme', theme);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            html.classList.remove('no-transition');
+        });
+    });
+})();
+</script>
+
+{# GoatCounter. Dashboard: https://psutil.goatcounter.com #}
+<script data-goatcounter="https://psutil.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+
+{# Google Analytics #}
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-G7374TFB11"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -37,29 +71,51 @@
   gtag('js', new Date());
   gtag('config', 'G-G7374TFB11');
 </script>
-
 {% endblock %}
 
+{# Expose the page name on <body> so CSS can match the active sidebar
+   item, whose link Sphinx renders as href="#". #}
+{% block body_tag %}<body data-page="{{ pagename }}">{% endblock %}
+
+{% block header %}
+<div class="header-stack">
+  {% include "banner.html" %}
+  {% include "topbar.html" %}
+</div>
+{% endblock %}
+
+{# Suppress basic's default top/bottom breadcrumb. #}
+{% block relbar1 %}{% endblock %}
+{% block relbar2 %}{% endblock %}
+
+{# Suppress basic's body-level footer; ours is rendered in-column
+   below, inside .main, by footer.html. #}
+{% block footer %}{% endblock %}
+
+{# Pages that don't get a right-side TOC. The article column expands
+   to fill the row. #}
+{% set _no_toc_pages = ['index', 'search', 'genindex', 'adoption'] %}
+{% set _has_toc = pagename not in _no_toc_pages %}
+
 {% block content %}
-<div class="rst-content">
-  <div class="article-with-toc">
-    <div class="article-column">
-      {% include "breadcrumbs.html" %}
-      <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-        {%- block document %}
-        <div itemprop="articleBody">
+<div class="page">
+  {% include "sidebar.html" %}
+  <main class="main" id="main-content" role="main">
+    {% include "breadcrumbs.html" %}
+    <div class="article-with-toc{% if not _has_toc %} no-toc{% endif %}">
+      <div class="article-column">
+        <article class="article">
           {% block body %}{% endblock %}
-        </div>
-        {%- if self.comments()|trim %}
-        <div class="articleComments">
-          {%- block comments %}{% endblock %}
-        </div>
-        {%- endif %}
-        {%- endblock %}
+        </article>
+        {% include "prev-next.html" %}
+        {% include "comments.html" %}
       </div>
-      {% include "footer.html" %}
+
+      {% if _has_toc %}{% include "toc.html" %}{% endif %}
     </div>
-    {% include "right-toc.html" %}
-  </div>
+  </main>
+
+  {# Footer lives outside <main> so its contentinfo landmark is top-level. #}
+  {% include "footer.html" %}
 </div>
 {% endblock %}

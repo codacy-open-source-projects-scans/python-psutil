@@ -31,6 +31,7 @@ except ImportError:
 
 
 PSUTIL_DEBUG = bool(os.getenv('PSUTIL_DEBUG'))
+PSUTIL_TESTING = bool(os.getenv('PSUTIL_TESTING'))
 _DEFAULT = object()
 
 # fmt: off
@@ -45,7 +46,7 @@ __all__ = [
     'parse_environ_block', 'path_exists_strict', 'usage_percent',
     'supports_ipv6', 'sockfam_to_enum', 'socktype_to_enum', "wrap_numbers",
     'open_text', 'open_binary', 'cat', 'bcat',
-    'bytes2human', 'conn_to_ntuple', 'debug',
+    'bytes2human', 'conn_to_ntuple', 'debug', 'warn',
     # shell utils
     'hilite', 'term_supports_colors', 'print_color',
 ]
@@ -59,7 +60,7 @@ __all__ = [
 
 POSIX = os.name == "posix"
 WINDOWS = os.name == "nt"
-LINUX = sys.platform.startswith("linux")
+LINUX = sys.platform.startswith(("linux", "android"))
 MACOS = sys.platform.startswith("darwin")
 OSX = MACOS  # deprecated alias
 FREEBSD = sys.platform.startswith(("freebsd", "midnightbsd"))
@@ -121,8 +122,7 @@ class Error(Exception):
 
     def __str__(self):
         # invoked on `raise Error`
-        info = self._infodict(("pid", "ppid", "name"))
-        if info:
+        if info := self._infodict(("pid", "ppid", "name")):
             details = "({})".format(
                 ", ".join([f"{k}={v!r}" for k, v in info.items()])
             )
@@ -223,6 +223,19 @@ def usage_percent(used, total, round_=None):
         return ret
 
 
+def cache_activate(proc):
+    """Make `memoize_when_activated` methods of *proc* start caching."""
+    proc._cache = {}
+
+
+def cache_deactivate(proc):
+    """Stop caching and discard what was collected."""
+    try:
+        del proc._cache
+    except AttributeError:
+        pass
+
+
 def memoize_when_activated(fun):
     """A memoize decorator which is disabled by default. It can be
     activated and deactivated on request.
@@ -242,7 +255,7 @@ def memoize_when_activated(fun):
     1
     >>>
     >>> # activated
-    >>> foo.cache_activate(self)
+    >>> cache_activate(f)
     >>> foo()
     1
     >>> foo()
@@ -276,21 +289,6 @@ def memoize_when_activated(fun):
                 pass
         return ret
 
-    def cache_activate(proc):
-        """Activate cache. Expects a Process instance. Cache will be
-        stored as a "_cache" instance attribute.
-        """
-        proc._cache = {}
-
-    def cache_deactivate(proc):
-        """Deactivate and clear cache."""
-        try:
-            del proc._cache
-        except AttributeError:
-            pass
-
-    wrapper.cache_activate = cache_activate
-    wrapper.cache_deactivate = cache_deactivate
     return wrapper
 
 
@@ -408,24 +406,26 @@ def conn_to_ntuple(fd, fam, type_, laddr, raddr, status, status_map, pid=None):
 
 def broadcast_addr(addr):
     """Given the address ntuple returned by ``net_if_addrs()``
-    calculates the broadcast address.
+    calculates the broadcast address. Returns None for a single-host
+    network (/32 or /128), which has no broadcast address.
     """
     import ipaddress
 
     if not addr.address or not addr.netmask:
         return None
     if addr.family == socket.AF_INET:
-        return str(
-            ipaddress.IPv4Network(
-                f"{addr.address}/{addr.netmask}", strict=False
-            ).broadcast_address
+        net = ipaddress.IPv4Network(
+            f"{addr.address}/{addr.netmask}", strict=False
         )
-    if addr.family == socket.AF_INET6:
-        return str(
-            ipaddress.IPv6Network(
-                f"{addr.address}/{addr.netmask}", strict=False
-            ).broadcast_address
+    elif addr.family == socket.AF_INET6:
+        net = ipaddress.IPv6Network(
+            f"{addr.address}/{addr.netmask}", strict=False
         )
+    else:
+        return None
+    if net.prefixlen == net.max_prefixlen:
+        return None
+    return str(net.broadcast_address)
 
 
 def deprecated_method(replacement):
@@ -449,31 +449,6 @@ def deprecated_method(replacement):
         return inner
 
     return outer
-
-
-class deprecated_property:
-    """A descriptor which can be used to mark a property as deprecated.
-    'replacement' is the attribute name to use instead. Usage::
-
-        class Foo:
-            bar = deprecated_property("baz")
-    """
-
-    def __init__(self, replacement):
-        self.replacement = replacement
-        self._msg = None
-
-    def __set_name__(self, owner, name):
-        self._msg = (
-            f"{name} is deprecated and will be removed; use"
-            f" {self.replacement} instead"
-        )
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        warnings.warn(self._msg, category=DeprecationWarning, stacklevel=2)
-        return getattr(obj, self.replacement)
 
 
 class _WrapNumbers:
@@ -642,8 +617,8 @@ def bcat(fname, fallback=_DEFAULT):
     return cat(fname, fallback=fallback, _open=open_binary)
 
 
-def bytes2human(n, format="%(value).1f%(symbol)s"):
-    """Used by various scripts. See: https://code.activestate.com/recipes/578019-bytes-to-human-human-to-bytes-converter/?in=user-4178764.
+def bytes2human(n):
+    """Convert n bytes to a human-readable string.
 
     >>> bytes2human(10000)
     '9.8K'
@@ -657,8 +632,8 @@ def bytes2human(n, format="%(value).1f%(symbol)s"):
     for symbol in reversed(symbols[1:]):
         if abs(n) >= prefix[symbol]:
             value = float(n) / prefix[symbol]
-            return format % locals()
-    return format % dict(symbol=symbols[0], value=n)
+            return f"{value:.1f}{symbol}"
+    return f"{float(n):.1f}{symbols[0]}"
 
 
 def get_procfs_path():
@@ -744,3 +719,22 @@ def debug(msg):
         print(  # noqa: T201
             f"psutil-debug [{fname}:{lineno}]> {msg}", file=sys.stderr
         )
+
+
+def warn(msg):
+    """Emit a RuntimeWarning. Use it for events which are never
+    supposed to happen, and imply a psutil bug.
+    """
+    import inspect
+
+    fname, lineno, _, _lines, _index = inspect.getframeinfo(
+        inspect.currentframe().f_back
+    )
+    msg = f"{msg} (originated from {fname}:{lineno})"
+    if PSUTIL_TESTING:
+        msg = f"CRITICAL: {msg}"
+        raise RuntimeError(msg)
+    try:
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+    except RuntimeWarning:
+        pass  # -W error: we never want to fail because of a warning

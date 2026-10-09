@@ -1,22 +1,14 @@
-/*
-   Styles for the home page (index.rst) and the sponsors section
-   (_sponsors.html, included by index.rst and funding.rst).
-
-   Loaded after custom.css, which defines the :root CSS variables
-   and [data-theme="dark"] overrides used here.
-*/
-
 /* ================================================================== */
 /* Layout                                                             */
 /* ================================================================== */
 
-.home-page .right-toc {
-    display: none !important;
+.home-page .right-sidebar {
+    display: none;
 }
 
 /* Hide next/prev buttons */
-.home-page .rst-footer-buttons {
-    display: none !important;
+.home-page .prev-next {
+    display: none;
 }
 
 /* ================================================================== */
@@ -25,21 +17,25 @@
 
 .home-page .hero {
     text-align: center;
-    padding: 1.5em 0 2em;
+    padding: 1.5em 0 1em;
 }
 
 .home-page .hero-title {
-    font-family: var(--font-hero);
+    font-family: var(--font-body);
     font-size: 3.5rem;
     font-weight: 700;
     color: var(--headings);
     line-height: 1.1;
-    margin-bottom: 0.3em;
+    margin: 0 0 0.3em;
     font-variant-ligatures: none;
     letter-spacing: 0.02em;
     display: flex;
     align-items: flex-end;
     justify-content: center;
+}
+
+[data-theme="dark"] .home-page .hero-title {
+    color: #fff;
 }
 
 .home-page .hero-logo {
@@ -54,95 +50,137 @@
 }
 
 .home-page .hero-subtitle {
-    font-family: var(--font-hero-subtext);
+    font-family: var(--font-body);
     font-size: 1.15rem;
     color: var(--text-muted);
     margin-bottom: 0.9em;
 }
 
-.home-page .hero-badges {
+.home-page .home-intro {
+    max-width: 720px;
+    margin: 0.4em auto 0;
+}
+
+.home-page .home-intro p {
+    margin-bottom: 0;
+}
+
+/* ================================================================== */
+/* Install one-liner                                                  */
+/* ================================================================== */
+
+.home-page .home-install {
+    position: relative;
     display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.home-page .hero-badges img {
-    vertical-align: middle;
-}
-
-/* Primary + secondary call-to-action buttons below the description cards. */
-.home-page .hero-cta {
-    margin: 2.5em 0 3em;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.home-page a.hero-btn,
-.home-page a.hero-btn:visited {
-    display: inline-flex;
     align-items: center;
-    gap: 0.5em;
-    padding: 0.55em 1.4em;
-    border-radius: var(--border-radius);
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    text-decoration: none !important;
-    border: 1px solid transparent;
-    transition: background var(--theme-transition),
-                color var(--theme-transition),
-                border-color var(--theme-transition),
-                box-shadow var(--theme-transition),
-                transform 0.08s ease;
-}
-
-.home-page a.hero-btn:active {
-    transform: translateY(1px);
-}
-
-.home-page a.hero-btn i.fa {
-    font-size: 0.8em;
-    transition: transform 0.15s ease;
-}
-
-.home-page a.hero-btn:hover i.fa-arrow-right {
-    transform: translateX(3px);
-}
-
-.home-page a.hero-btn-primary,
-.home-page a.hero-btn-primary:visited {
-    background: var(--cta-fill);
-    color: #fff !important;
-    border-color: var(--cta-fill);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.home-page a.hero-btn-primary:hover {
-    background: var(--cta-fill-hover);
-    border-color: var(--cta-fill-hover);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-}
-
-[data-theme="dark"] .home-page a.hero-btn-primary,
-[data-theme="dark"] .home-page a.hero-btn-primary:visited {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-/* secondary: outlined, same palette */
-.home-page a.hero-btn-secondary,
-.home-page a.hero-btn-secondary:visited {
+    gap: 0.6em;
+    width: max-content;
+    max-width: 100%;
+    margin: 2.5em auto 0;
+    padding: 0.45em 0.55em 0.45em 0.85em;
     background: transparent;
-    color: var(--links) !important;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--code-font);
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--content-text);
+    transition: border-color 0.2s ease;
+}
+
+.home-page .home-install:hover {
+    border-color: var(--text-muted);
+}
+
+.home-page .home-install.copied {
     border-color: var(--links);
 }
 
-.home-page a.hero-btn-secondary:hover {
-    background: var(--surface-sunken);
+.home-page .home-install-prompt {
+    color: var(--text-muted);
+    font-weight: 600;
+    user-select: none;
 }
 
+.home-page .home-install-cmd {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--content-text);
+    font-family: var(--code-font);
+    font-size: inherit;
+    white-space: nowrap;
+}
+
+.home-page button.home-install-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9em;
+    height: 1.9em;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.home-page button.home-install-copy:hover {
+    background: var(--surface-sunken);
+    color: var(--content-text);
+}
+
+/* Icon swap: show copy by default, check when .copied is set on the
+   wrapper. Both SVGs are stacked at the same spot via grid trick on
+   the button so the layout doesn't shift. */
+.home-page .home-install-icon-copy,
+.home-page .home-install-icon-check {
+    grid-area: 1 / 1;
+}
+
+.home-page button.home-install-copy {
+    display: inline-grid;
+    place-items: center;
+}
+
+.home-page .home-install-icon-check {
+    visibility: hidden;
+    color: var(--links);
+}
+
+.home-page .home-install.copied .home-install-icon-copy {
+    visibility: hidden;
+}
+
+.home-page .home-install.copied .home-install-icon-check {
+    visibility: visible;
+}
+
+/* "Copied" toast: floats above the button, fades + lifts in. */
+.home-page .home-install-toast {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0.4em;
+    padding: 0.18em 0.55em;
+    background: var(--links);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.home-page .home-install.copied .home-install-toast {
+    opacity: 1;
+    transform: translateY(0);
+}
 
 /* ================================================================== */
 /* Platform pills                                                     */
@@ -153,20 +191,33 @@
     margin-bottom: 16px;
 }
 
+/* Soften the Sponsors H2 */
+.home-page h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    border-bottom: none;
+    margin-top: 2.5em;
+    margin-bottom: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
 .home-page .home-platforms {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.6em;
-    margin: 1em 0 3em;
+    gap: 0.4em;
+    margin: 2.5em 0 0;
 }
 
 .home-page a.home-platforms-label,
 .home-page a.home-platforms-label:visited {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-decoration: none;
     transition: color var(--theme-transition);
@@ -193,17 +244,67 @@
     font-size: 0.82rem;
     color: var(--text-muted);
     background: var(--surface-sunken);
-    text-decoration: none !important;
-    transition: border-color var(--theme-transition),
-                color var(--theme-transition),
-                background var(--theme-transition);
+    text-decoration: none;
+    transition:
+        border-color var(--theme-transition),
+        color var(--theme-transition),
+        background var(--theme-transition);
 }
 
 .home-page a.home-platform-pill:hover {
     border-color: var(--text-muted);
     color: var(--content-text);
     background: var(--surface-raised);
-    text-decoration: none !important;
+    text-decoration: none;
+}
+
+/* ================================================================== */
+/* Adoption stats banner                                              */
+/* ================================================================== */
+
+.home-page .home-stats {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 56px;
+    margin: 1em 0em 1.5em;
+}
+
+.home-page .home-section-label:has(+ .home-stats) {
+    margin-top: 4em;
+}
+
+/* Quiet stats: just numbers + labels, no boxes. The figures speak;
+   the chrome was reading as Series-B-SaaS marketing strip. */
+.home-page a.home-stat,
+.home-page a.home-stat:visited {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--content-text);
+    text-decoration: none;
+    transition: color var(--theme-transition);
+}
+
+.home-page a.home-stat:hover .home-stat-num {
+    color: var(--links);
+}
+
+.home-page .home-stat-num {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--content-text);
+    line-height: 1.2;
+    transition: color var(--theme-transition);
+}
+
+.home-page .home-stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 /* ================================================================== */
@@ -214,13 +315,92 @@
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 14px;
-    margin: 0 0 2.5em;
+    margin: 0;
 }
 
 @media (max-width: 900px) {
     .home-page .home-feature-cards {
         grid-template-columns: repeat(3, 1fr);
     }
+}
+
+.home-page .home-feature-card {
+    position: relative;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 20px 14px;
+    text-align: center;
+    background: var(--card-bg);
+    text-decoration: none;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    display: block;
+}
+
+.home-page .home-feature-card:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-color: var(--links);
+}
+
+/* Hover-revealed arrow signals "this is a nav link, click to jump." */
+.home-page .home-feature-card::after {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.home-page .home-feature-card:hover::after {
+    opacity: 1;
+    color: var(--links);
+}
+
+/* Small caps section labels (Runs on, Explore the API, Try it).
+ * Margins drive the page rhythm: 2.5em above each section, 0.9em
+ * caption-to-content. Sections themselves use margin: 0 so gaps
+ * don't stack. */
+.home-page .home-section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 2.5em 0 0.9em;
+}
+
+/* Section-label owns the caption-to-content gap; zero out the
+ * next sibling's top margin so they don't stack. */
+.home-page .home-section-label + .home-stats,
+.home-page .home-section-label + .home-quickstart,
+.home-page .home-section-label + .sponsor-table {
+    margin-top: 0;
+}
+
+/* Extra breathing room above "Try it" so it anchors as the page's
+ * interactive moment rather than blending with neighboring labels. */
+.home-page .home-section-label:has(+ .home-quickstart) {
+    margin-top: 4em;
+}
+
+.home-page .home-icon-svg {
+    width: 2.2rem;
+    height: 2.2rem;
+    display: block;
+    margin: 0 auto 10px;
+}
+
+[data-theme="dark"] .home-page .home-icon-svg {
+    filter: brightness(1.45) saturate(0.7);
+}
+
+.home-page .home-feature-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    color: var(--headings);
 }
 
 @media (max-width: 480px) {
@@ -235,230 +415,9 @@
         width: 1.6rem;
         height: 1.6rem;
     }
-    .home-page .home-icon-fa {
-        font-size: 1.6rem;
-    }
     .home-page .home-feature-title {
         font-size: 0.8rem;
     }
-}
-
-.home-page .home-feature-card {
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    padding: 20px 14px;
-    text-align: center;
-    background: var(--card-bg);
-    text-decoration: none !important;
-    transition: box-shadow 0.15s, border-color 0.15s;
-    display: block;
-}
-
-.home-page .home-feature-card:hover {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    border-color: var(--links);
-}
-
-.home-page .home-icon-svg {
-    width: 2.2rem;
-    height: 2.2rem;
-    display: block;
-    margin: 0 auto 10px;
-}
-
-[data-theme="dark"] .home-page .home-icon-svg {
-    filter: brightness(1.45) saturate(0.7);
-}
-
-.home-page .home-icon-fa {
-    font-size: 2.2rem;
-    color: var(--links);
-    display: block;
-    margin-bottom: 10px;
-}
-
-.home-page .home-feature-title {
-    font-weight: 700;
-    font-size: 0.95rem;
-    margin-bottom: 10px;
-    color: var(--headings);
-}
-
-.home-page .home-feature-apis {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-family: var(--code-font);
-    line-height: 1.9;
-}
-
-/* ================================================================== */
-/* Description cards                                                  */
-/* ================================================================== */
-
-.home-page .home-desc-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    align-items: stretch;
-    gap: 1rem;
-    margin: 2rem 0;
-}
-
-@media (max-width: 700px) {
-    .home-page .home-desc-cards {
-        grid-template-columns: 1fr;
-    }
-}
-
-.home-page .home-desc-card {
-    border: 1px solid #e1e4e8;
-    border-radius: 8px;
-    padding: 1.1rem 1.3rem;
-    background: var(--card-bg);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-    display: flex;
-    flex-direction: column;
-}
-
-[data-theme="dark"] .home-page .home-desc-card {
-    border-color: #2e2e2e;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-.home-page .home-desc-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: -1.1rem -1.3rem 0.75rem;
-    padding: 0.55rem 1.3rem;
-    background: var(--surface-raised);
-    border-bottom: 1px solid var(--card-border);
-    border-radius: 8px 8px 0 0;
-}
-
-.home-page .home-desc-card-icon {
-    font-size: 1.1rem;
-    flex-shrink: 0;
-    padding-right: 0.35rem;
-    line-height: 1;
-    padding-top: 2px;
-}
-
-.home-page .home-desc-card:nth-child(1) .home-desc-card-icon { color: #2a6a90; }
-.home-page .home-desc-card:nth-child(2) .home-desc-card-icon { color: #8a7550; }
-.home-page .home-desc-card:nth-child(3) .home-desc-card-icon { color: #5d6d7e; }
-
-.home-page .home-desc-card:nth-child(1),
-.home-page .home-desc-card:nth-child(2),
-.home-page .home-desc-card:nth-child(3) {
-    position: relative;
-    overflow: hidden;
-}
-
-.home-page .home-desc-card:nth-child(1),
-.home-page .home-desc-card:nth-child(3) {
-    background: #f0f6fb;
-}
-
-.home-page .home-desc-card:nth-child(2) {
-    background: #faf5ec;
-}
-
-[data-theme="dark"] .home-page .home-desc-card:nth-child(1),
-[data-theme="dark"] .home-page .home-desc-card:nth-child(3) {
-    background: #1a2430;
-}
-
-[data-theme="dark"] .home-page .home-desc-card:nth-child(2) {
-    background: #1f1c14;
-}
-
-.home-page .home-desc-card:nth-child(1) .home-desc-card-header {
-    background: linear-gradient(to bottom, #6aafd4, #4a90b8);
-    border-bottom-color: #3a7aa0;
-}
-
-.home-page .home-desc-card:nth-child(2) .home-desc-card-header {
-    background: linear-gradient(to bottom, #d9c49a, #b8a078);
-    border-bottom-color: #8a7550;
-}
-
-.home-page .home-desc-card:nth-child(3) .home-desc-card-header {
-    background: linear-gradient(to bottom, #a0b0bc, #7a8fa0);
-    border-bottom-color: #637888;
-}
-
-.home-page .home-desc-card:nth-child(1)::before,
-.home-page .home-desc-card:nth-child(2)::before,
-.home-page .home-desc-card:nth-child(3)::before {
-    font-family: 'FontAwesome';
-    font-size: 7rem;
-    position: absolute;
-    bottom: -0.75rem;
-    right: 0.5rem;
-    opacity: 0.07;
-    pointer-events: none;
-    line-height: 1;
-}
-
-.home-page .home-desc-card:nth-child(1)::before {
-    content: '\f085';
-    color: #2a6a90;
-}
-
-.home-page .home-desc-card:nth-child(2)::before {
-    content: '\f080';
-    color: #8a7550;
-}
-
-.home-page .home-desc-card:nth-child(3)::before {
-    content: '\f0ac';
-    color: #5d6d7e;
-}
-
-.home-page .home-desc-card-header .home-desc-card-title {
-    color: #fff;
-    text-shadow:
-        0 0 2px rgba(0, 0, 0, 0.4),
-        0 1px 4px rgba(0, 0, 0, 0.5);
-    -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.25);
-}
-
-.home-page .home-desc-card-header .home-desc-card-icon {
-    color: #fff;
-    text-shadow: none;
-    -webkit-text-stroke: 0;
-    font-size: 1.2rem;
-}
-
-.home-page .home-desc-card-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--headings);
-}
-
-.home-page .home-desc-card p {
-    font-size: 0.88rem;
-    color: var(--content-text);
-    margin: 0 0 0.75rem;
-    line-height: 1.6;
-    flex-grow: 1;
-}
-
-.home-page .home-desc-card-link {
-    display: inline-block;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--links);
-    text-decoration: none;
-    margin-top: auto;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border);
-    width: 100%;
-}
-
-.home-page .home-desc-card-link:hover {
-    text-decoration: underline;
-    color: var(--links);
 }
 
 /* ================================================================== */
@@ -466,21 +425,36 @@
 /* ================================================================== */
 
 .home-page #sponsors {
-    margin: 2rem -3rem 0;
-    padding: 1.5rem 3rem 2rem;
+    margin: 1.5rem -56px 20px;
+    padding: 1.5rem 56px 2rem;
     background: #f8f9fa;
     border-top: 1px solid var(--border);
-    margin-bottom: 20px;
     text-align: center;
 }
 
-@media (max-width: 768px) {
+/* Full-bleed band: on mobile .main's side padding shrinks, so match
+   the pull-out to it or the band overflows and the page drags
+   sideways. */
+@media (max-width: 1024px) {
     .home-page #sponsors {
-        margin-left: 0;
-        margin-right: 0;
-        padding-left: 1rem;
-        padding-right: 1rem;
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 16px;
+        padding-right: 16px;
     }
+}
+
+@media (max-width: 600px) {
+    .home-page #sponsors {
+        margin-left: -12px;
+        margin-right: -12px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+.home-page #sponsors > .home-section-label {
+    margin-top: 1.2em;
 }
 
 [data-theme="dark"] .home-page #sponsors {
@@ -492,8 +466,8 @@
 }
 
 .sponsor-table {
-    margin-left: auto !important;
-    margin-right: auto !important;
+    margin-left: auto;
+    margin-right: auto;
     max-width: 100%;
 }
 
@@ -516,17 +490,8 @@ table.sponsor-table {
 table.sponsor-table,
 table.sponsor-table tr,
 table.sponsor-table td {
-    background: transparent !important;
-    border: none !important;
-}
-
-.sponsor-logo {
-    filter: grayscale(100%) opacity(100%);
-    transition: filter 0.2s;
-}
-
-.sponsor-logo:hover {
-    filter: grayscale(0%) opacity(100%);
+    background: transparent;
+    border: none;
 }
 
 .sponsor-cta-wrap {
@@ -541,10 +506,10 @@ a.sponsor-cta:visited {
     text-decoration: underline dashed;
     text-decoration-color: var(--border);
     text-underline-offset: 3px;
-    opacity: 0.8;
-    transition: color var(--theme-transition),
-                opacity var(--theme-transition),
-                text-decoration-color var(--theme-transition);
+    transition:
+        color var(--theme-transition),
+        opacity var(--theme-transition),
+        text-decoration-color var(--theme-transition);
 }
 
 a.sponsor-cta:hover {
@@ -561,4 +526,125 @@ a.sponsor-cta:hover {
 /* TOC (hidden) */
 .home-page .toctree-wrapper {
     display: none;
+}
+
+/* ================================================================== */
+/* Quickstart tabs (sphinx-design)                                    */
+/* ================================================================== */
+
+.home-page .home-quickstart .sd-tab-set {
+    margin: 0;
+}
+
+.home-page .home-quickstart .sd-tab-content {
+    padding: 0.5rem 0 0;
+    box-shadow: 0 -0.0625rem var(--border);
+}
+
+/* "See more →" link below each tab's code block. */
+.home-quickstart .home-tab-more {
+    margin-top: 0.8em;
+    text-align: right;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.home-quickstart .home-tab-more p {
+    margin-bottom: 0;
+}
+
+.home-quickstart .home-tab-more a,
+.home-quickstart .home-tab-more a:visited {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.home-quickstart .home-tab-more a:hover {
+    color: var(--links);
+    text-decoration: underline;
+}
+
+/* Inactive tabs: lighter than default so the current tab pops. */
+.home-quickstart .sd-tab-label {
+    color: var(--text-muted);
+    font-weight: 500;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.home-quickstart .sd-tab-label:hover {
+    opacity: 1;
+    color: var(--content-text);
+}
+
+/* Active tab: bolder weight + full opacity so it carries the page. */
+.home-quickstart input:checked + .sd-tab-label {
+    color: var(--links);
+    opacity: 1;
+    font-weight: 700;
+}
+
+/* ================================================================== */
+/* Quickstart code-block window chrome                                */
+/* ================================================================== */
+
+/* macOS-style traffic-light dots. */
+
+.home-quickstart .highlight {
+    position: relative;
+    padding: 42px 18px 10px;
+}
+
+.home-quickstart .highlight pre {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.home-quickstart .highlight,
+.home-quickstart .highlight pre {
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+}
+
+.home-quickstart .highlight button.copybtn {
+    top: 36px;
+    right: 8px;
+}
+
+.home-quickstart .highlight::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+    background-color: #dde2e8;
+    background-image:
+        radial-gradient(circle at 14px 14px, #d49995 4px, transparent 4.5px),
+        radial-gradient(circle at 30px 14px, #d4b685 4px, transparent 4.5px),
+        radial-gradient(circle at 46px 14px, #9bc7a0 4px, transparent 4.5px);
+    border-bottom: 1px solid var(--border);
+    pointer-events: none;
+}
+
+[data-theme="dark"] .home-quickstart .highlight::before {
+    background-color: #1d1d1d;
+    border-bottom-color: #3a3a3a;
+}
+
+.home-quickstart .highlight::after {
+    content: "python";
+    position: absolute;
+    top: 0;
+    right: 12px;
+    height: 28px;
+    line-height: 28px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    opacity: 0.7;
+    pointer-events: none;
 }

@@ -1,9 +1,15 @@
-// Right-side per-page TOC. Modeled after pydata-sphinx-theme.
+// Copyright (c) 2009 Giampaolo Rodola. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Right-side per-page TOC. Scroll-spy + auto-positioning so the
+// current heading stays visible inside the (independently scrolling)
+// TOC. Modeled after pydata-sphinx-theme.
 
 (function () {
     "use strict";
 
-    var pageToc = document.querySelector(".right-toc");
+    var pageToc = document.querySelector(".right-sidebar");
     if (!pageToc) {
         return;
     }
@@ -16,7 +22,7 @@
     });
 
     var tocLinks = Array.prototype.slice.call(
-        pageToc.querySelectorAll("a[href^=\"#\"]")
+        pageToc.querySelectorAll('a[href^="#"]'),
     );
 
     if (tocLinks.length === 0) {
@@ -67,12 +73,10 @@
     });
 
     var observedHeadings = Array.from(headingsToTocLinks.keys());
-    var intersectingHeadings = new Set();
-
     var titleHeight = 0;
 
     function refreshTitleHeight() {
-        var title = pageToc.querySelector(".right-toc-title");
+        var title = pageToc.querySelector(".right-sidebar-title");
         if (title) {
             titleHeight = title.offsetHeight;
         }
@@ -109,12 +113,10 @@
         }
 
         if (activeLink) {
-            activeLink.classList.remove("scroll-current");
             activeLink.removeAttribute("aria-current");
         }
 
         activeLis.forEach(function (li) {
-            li.classList.remove("scroll-current");
             li.classList.remove("scroll-current-leaf");
         });
 
@@ -125,40 +127,36 @@
             return;
         }
 
-        tocLink.classList.add("scroll-current");
         tocLink.setAttribute("aria-current", "true");
 
         var leaf = tocLink.parentNode && tocLink.parentNode.closest("li");
 
         if (leaf) {
-            leaf.classList.add("scroll-current");
             leaf.classList.add("scroll-current-leaf");
-
             activeLis.push(leaf);
-
-            var li = leaf.parentNode && leaf.parentNode.closest("li");
-
-            while (li) {
-                li.classList.add("scroll-current");
-                activeLis.push(li);
-                li = li.parentNode && li.parentNode.closest("li");
-            }
         }
 
         ensureVisibleInToc(tocLink);
     }
 
     var observer;
+    var disableObserver = false;
+
+    function temporarilyDisableObserver(ms) {
+        disableObserver = true;
+        setTimeout(function () {
+            disableObserver = false;
+        }, ms);
+    }
 
     function connectIntersectionObserver() {
         if (observer) {
             observer.disconnect();
         }
 
-        intersectingHeadings.clear();
         refreshTitleHeight();
 
-        var topbar = document.querySelector(".top-bar");
+        var topbar = document.querySelector(".topbar");
         var headerHeight = topbar ? topbar.offsetHeight : 0;
 
         // Active band: top 30% of viewport below the header.
@@ -169,28 +167,18 @@
         };
 
         function callback(entries) {
-            entries.forEach(function (e) {
-                if (e.isIntersecting) {
-                    intersectingHeadings.add(e.target);
-                }
-                else {
-                    intersectingHeadings.delete(e.target);
-                }
-            });
-
-            if (intersectingHeadings.size === 0) {
+            if (disableObserver) {
                 return;
             }
-
-            var top = observedHeadings.find(function (h) {
-                return intersectingHeadings.has(h);
-            });
-
-            if (top) {
-                var tocLink = headingsToTocLinks.get(top);
-                if (tocLink) {
-                    activate(tocLink);
-                }
+            var entry = entries.filter(function (e) {
+                return e.isIntersecting;
+            }).pop();
+            if (!entry) {
+                return;
+            }
+            var tocLink = headingsToTocLinks.get(entry.target);
+            if (tocLink) {
+                activate(tocLink);
             }
         }
 
@@ -210,53 +198,48 @@
         };
     }
 
+    // Highlight the TOC entry whose href matches the URL hash. Used on
+    // page load and when navigating between headings on the same page.
+    function syncTocHash(hash) {
+        if (!hash || hash.length <= 1) {
+            return;
+        }
+        var link = tocLinks.find(function (l) {
+            return l.hash === hash;
+        });
+        if (link) {
+            temporarilyDisableObserver(1000);
+            activate(link);
+        }
+    }
+
     window.addEventListener(
         "resize",
-        debounce(connectIntersectionObserver, 300)
+        debounce(connectIntersectionObserver, 300),
     );
 
     connectIntersectionObserver();
 
-    // Initial activation: read positions directly. The observer's
-    // initial callback can fire before scroll is restored on refresh.
-    function activateForCurrentScroll() {
-        // Hash in URL: prefer the matching link directly.
-        if (location.hash && location.hash.length > 1) {
-            var hashLink = pageToc.querySelector(
-                "a[href=\"" + location.hash + "\"]"
-            );
-            if (hashLink) {
-                activate(hashLink);
-                return;
-            }
-        }
+    // Initial sync (in case the URL has a hash).
+    syncTocHash(location.hash);
 
-        var topbar = document.querySelector(".top-bar");
-        var headerHeight = topbar ? topbar.offsetHeight : 0;
-        var bandTop = headerHeight + 1;
+    // Hash changes via in-page anchor clicks.
+    window.addEventListener("hashchange", function () {
+        syncTocHash(location.hash);
+    });
 
-        var current = null;
-        for (var i = 0; i < observedHeadings.length; i++) {
-            if (observedHeadings[i].getBoundingClientRect().top <= bandTop) {
-                current = observedHeadings[i];
-            }
-            else {
-                break;
-            }
+    // Edge case: clicking a same-hash link doesn't fire hashchange,
+    // but we still want the TOC to re-sync (the user may have scrolled
+    // away from that section in between).
+    window.addEventListener("click", function (e) {
+        var link = e.target.closest("a");
+        if (
+            link &&
+            link.hash &&
+            link.hash === location.hash &&
+            link.origin === location.origin
+        ) {
+            syncTocHash(link.hash);
         }
-        if (!current && observedHeadings.length > 0) {
-            current = observedHeadings[0];
-        }
-        if (current) {
-            var link = headingsToTocLinks.get(current);
-            if (link) {
-                activate(link);
-            }
-        }
-    }
-
-    // pageshow fires after scroll restore; rAF defers past layout.
-    window.addEventListener("pageshow", function () {
-        requestAnimationFrame(activateForCurrentScroll);
     });
 })();

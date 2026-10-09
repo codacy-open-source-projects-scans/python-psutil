@@ -24,7 +24,7 @@ import zipfile
 
 import requests
 
-ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR))
 from _bootstrap import load_module  # noqa: E402
 
@@ -34,6 +34,7 @@ bytes2human = _common.bytes2human
 USER = "giampaolo"
 PROJECT = "psutil"
 OUTFILE = "wheels-github.zip"
+ARTIFACT_NAME = "wheels"
 TOKEN = ""
 TIMEOUT = 30
 
@@ -76,7 +77,10 @@ def download_zip(url):
 
 def run():
     data = get_artifacts()
-    download_zip(data['artifacts'][0]['archive_download_url'])
+    artifacts = [x for x in data['artifacts'] if x['name'] == ARTIFACT_NAME]
+    if not artifacts:
+        return sys.exit(f"no artifact named {ARTIFACT_NAME!r} was found")
+    download_zip(artifacts[0]['archive_download_url'])
     os.makedirs('dist', exist_ok=True)
     with zipfile.ZipFile(OUTFILE, 'r') as zf:
         zf.extractall('dist')

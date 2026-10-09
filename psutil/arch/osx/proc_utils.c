@@ -101,7 +101,7 @@ psutil_sysctl_procargs(pid_t pid, char *procargs, size_t *argmax) {
             // see: https://github.com/giampaolo/psutil/issues/2708
             psutil_debug("sysctl(KERN_PROCARGS2) -> errno 0");
             psutil_oserror_ad("sysctl(KERN_PROCARGS2) -> errno 0");
-            return 0;
+            return -1;
         }
         psutil_oserror_wsyscall("sysctl(KERN_PROCARGS2)");
         return -1;
@@ -132,53 +132,6 @@ psutil_proc_pidinfo(pid_t pid, int flavor, uint64_t arg, void *pti, int size) {
         psutil_raise_for_pid(
             pid, "proc_pidinfo() returned less data than requested buffer size"
         );
-        return -1;
-    }
-
-    return 0;
-}
-
-
-// A wrapper around task_for_pid() which sucks big time:
-// - it's not documented
-// - errno is set only sometimes
-// - sometimes errno is ENOENT (?!?)
-// - for PIDs != getpid() or PIDs which are not members of the procmod
-//   it requires root
-//
-// As such we can only guess what the heck went wrong and fail either
-// with NoSuchProcess or give up with AccessDenied. References:
-// - https://github.com/giampaolo/psutil/issues/1181
-// - https://github.com/giampaolo/psutil/issues/1209
-// - https://github.com/giampaolo/psutil/issues/1291#issuecomment-396062519
-int
-psutil_task_for_pid(pid_t pid, mach_port_t *task) {
-    kern_return_t err;
-
-    if (pid < 0 || !task)
-        return psutil_badargs("psutil_task_for_pid");
-
-    err = task_for_pid(mach_task_self(), pid, task);
-    if (err != KERN_SUCCESS) {
-        if (psutil_pid_exists(pid) == 0) {
-            psutil_oserror_nsp("task_for_pid");
-        }
-        else if (is_zombie(pid) == 1) {
-            PyErr_SetString(
-                ZombieProcessError, "task_for_pid -> psutil_is_zombie -> 1"
-            );
-        }
-        else {
-            psutil_debug(
-                "task_for_pid() failed (pid=%ld, err=%i, errno=%i, msg='%s'); "
-                "setting EACCES",
-                (long)pid,
-                err,
-                errno,
-                mach_error_string(err)
-            );
-            psutil_oserror_ad("task_for_pid");
-        }
         return -1;
     }
 

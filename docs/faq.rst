@@ -78,9 +78,9 @@ Why do I get NoSuchProcess?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :exc:`NoSuchProcess` is raised when a process no longer exists. The most common
-cause is a TOCTOU (time-of-check / time-of-use) race condition: a process can
-die between the moment its PID is obtained and the moment it is queried. The
-following two naive patterns are racy:
+cause is a race condition: a process can die between the moment its PID is
+obtained and the moment it is queried. The following two naive patterns are
+racy:
 
 .. code-block:: python
 
@@ -122,8 +122,8 @@ try/except:
   except (psutil.NoSuchProcess, psutil.AccessDenied):
       pass
 
-An even simpler pattern is to catch :exc:`Error`, which implies both
-:exc:`AccessDenied` and :exc:`NoSuchProcess`:
+You can also catch :exc:`Error`, which implies both :exc:`AccessDenied` and
+:exc:`NoSuchProcess`:
 
 .. code-block:: python
 
@@ -157,7 +157,7 @@ was assigned the same PID.
   :meth:`Process.resume`, :meth:`Process.terminate`, :meth:`Process.kill`)
   **do** check for PID reuse (via PID + creation time) before acting, raising
   :exc:`NoSuchProcess` if the PID was recycled. This prevents accidentally
-  killing the wrong process (`BPO-6973`_).
+  killing the wrong process (:bpo:`6973`).
 
 - *Set methods* :meth:`Process.nice` (set), :meth:`Process.ionice` (set),
   :meth:`Process.cpu_affinity` (set), and :meth:`Process.rlimit` (set) also
@@ -168,6 +168,14 @@ was assigned the same PID.
 creation time, and returns ``False`` if the PID was reused. Prefer it over
 :func:`pid_exists`.
 
+.. note::
+
+  On FreeBSD, OpenBSD, SunOS and AIX the PID reuse check is disabled, and
+  process identity is based on the PID alone. That's because on these platforms
+  the process creation time is not stable across system clock updates (e.g.
+  NTP), which previously caused false :exc:`NoSuchProcess` exceptions for
+  processes which were still alive (:gh:`2888`).
+
 .. _faq_zombie_process:
 
 What is a zombie process?
@@ -175,10 +183,10 @@ What is a zombie process?
 
 A :term:`zombie process` is a process that has finished execution but whose
 entry remains in the process table until the parent calls ``wait()``. When
-psutil encounters a zombie process it raises :exc:`ZombieProcess`, a subclass
-of :exc:`NoSuchProcess`.
+psutil encounters a :term:`zombie process` it raises :exc:`ZombieProcess`, a
+subclass of :exc:`NoSuchProcess`.
 
-**What you can and cannot do with a zombie:**
+**Behavior:**
 
 - A zombie process can be instantiated via :class:`Process` (pid) without
   error.
@@ -227,10 +235,10 @@ Why does open_files() not return all files on Windows?
 
 :meth:`Process.open_files` on Windows is not guaranteed to enumerate all
 regular file handles. The underlying Windows API may hang when retrieving
-certain handle names, so psutil spawns a thread to query each handle and kills
-it if it doesn't respond within 100 ms. This means some entries can be missed.
-This is a known OS-level limitation shared by tools like Process Hacker (see
-`issue 597 <https://github.com/giampaolo/psutil/pull/597>`_).
+certain :term:`handle` names, so psutil spawns a thread to query each handle
+and kills it if it doesn't respond within 100 ms. This means some entries can
+be missed. This is a known OS-level limitation shared by tools like Process
+Hacker (see `issue 597 <https://github.com/giampaolo/psutil/pull/597>`_).
 
 .. _faq_pid_exists_vs_isrunning:
 
@@ -255,8 +263,9 @@ Why does cpu_percent() return 0.0 on first call?
 
 :func:`cpu_percent` (and :meth:`Process.cpu_percent`) measures CPU usage
 *between two calls*. The very first call has no prior sample to compare
-against, so it always returns ``0.0``. The fix is to call it once to initialize
-the baseline, discard the result, then call it again after a short sleep:
+against, so it returns a meaningless ``0.0``. The fix is to call it once to
+initialize the baseline, discard the result, then call it again after a short
+sleep:
 
 .. code-block:: python
 
@@ -289,9 +298,9 @@ Can Process.cpu_percent() return a value higher than 100%?
 
 Yes. On a multi-core system a process can run threads on several CPUs at the
 same time. The maximum value is ``psutil.cpu_count() * 100``. For example, on a
-4-core machine a fully-loaded process can reach 400%. The system-wide
-:func:`cpu_percent` (without a :class:`Process`) always stays in the 0–100%
-range because it averages across all cores.
+machine with 4 :term:`logical CPUs <logical CPU>`, a fully-loaded process can
+reach 400%. The system-wide :func:`cpu_percent` (without a :class:`Process`)
+always stays in the 0-100% range because it averages across all cores.
 
 The returned value is explicitly *not* split evenly between all available CPUs.
 This is consistent with the ``top`` UNIX utility: a busy loop on a system with
@@ -316,8 +325,8 @@ What is the difference between psutil, os, and multiprocessing cpu_count()?
 - :func:`psutil.cpu_count` with ``logical=False`` returns the number of
   :term:`physical cores <physical CPU>`, which has no stdlib equivalent.
 
-Memory
-------
+Process memory
+--------------
 
 .. _faq_virtual_memory_available:
 
@@ -350,12 +359,12 @@ What is the difference between RSS and VMS?
   :term:`swapped out <swap-out>`, shared libraries, and
   :term:`memory-mapped files <mapped memory>`.
 
-:field:`rss` is the go-to metric for answering "how much RAM is this process
-using?". Note that it includes :term:`shared memory`, so it may overestimate
-actual usage when compared across processes. :field:`vms` is generally larger
-and can be misleadingly high, as it includes memory that is not resident in
-physical RAM. Both values are portable across platforms and are returned by
-:meth:`Process.memory_info`.
+:field:`rss` is generally the most useful metric for answering "how much RAM is
+this process using?". Note that it includes :term:`shared memory`, so it may
+overestimate actual usage when compared across processes. :field:`vms` is
+generally larger and can be misleadingly high, as it includes memory that is
+not resident in physical RAM. Both values are portable across platforms and are
+returned by :meth:`Process.memory_info`.
 
 .. _faq_memory_footprint:
 
@@ -372,8 +381,37 @@ includes those 2 MB in its :field:`rss`.
 (:term:`Unique Set Size <USS>`), i.e. :term:`private memory` of the process. It
 represents the amount of memory that would be freed if the process were
 terminated right now. It is more accurate than :term:`RSS`, but substantially
-slower and requires higher privileges. On Linux it also returns :field:`pss`
-(:term:`Proportional Set Size <PSS>`) and :term:`swap <swap memory>`.
+slower and may require higher privileges. It also returns :field:`shared`, and
+on Linux :field:`pss` (:term:`Proportional Set Size <PSS>`) and
+:term:`swap <swap memory>`.
+
+.. _faq_memory_shared:
+
+Why do memory_info() and memory_footprint() report different shared values?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because they measure different things. :meth:`Process.memory_info`'s
+:field:`shared` counts resident memory that *could* be shared, meaning
+file-backed pages and shmem, no matter if other processes map it or not. This
+is what ``top`` shows in the SHR column. :meth:`Process.memory_footprint`'s
+:field:`shared` only counts pages that are mapped more than once. That usually
+means "mapped by another process", but multiple mappings by the same process
+also count. It reads the page tables instead of a counter, so it's exact in
+that regard, but slower.
+
+.. _faq_memory_swap:
+
+Why do swap_anon and memory_footprint()'s swap differ?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:meth:`Process.memory_extras`'s :field:`swap_anon` counts swapped-out
+:term:`anonymous memory` only, so it misses swapped shmem / tmpfs memory.
+:meth:`Process.memory_footprint`'s :field:`swap` includes that too, but it has
+to walk the whole process address space, which is a lot slower and may require
+root. If you don't care about shmem, prefer :field:`swap_anon`.
+
+System memory
+-------------
 
 .. _faq_used_plus_free:
 
@@ -392,5 +430,3 @@ reclaimable and accounted separately:
 
 The :field:`available` field already includes this reclaimable memory and is
 the best indicator of memory pressure. See :ref:`faq_virtual_memory_available`.
-
-.. _`BPO-6973`: https://bugs.python.org/issue6973

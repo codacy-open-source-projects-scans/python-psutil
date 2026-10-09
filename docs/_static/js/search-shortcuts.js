@@ -1,151 +1,157 @@
-// Implement keyboard shortcuts re. to search.
-// - Ctrl+K: un/focus the search input (was /)
-// - esc: unfocus the search input
+// Copyright (c) 2009 Giampaolo Rodola. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Sidebar input:
+//   `CTRL+K` / `CMD+K`: focus / select the search input
+//   `ESC`: exit search
+//
 // Search results page:
-// - up/down: move selection
-// - enter: open entry
+//   `Arrow Up` / `Arrow down`: navigate results
+//   `ENTER`: open result
 
-document.addEventListener("DOMContentLoaded", function () {
-    // No-op on touch/mobile devices.
-    if (window.matchMedia("(pointer: coarse)").matches)
-        return;
-
-    var searchInput = document.querySelector(
-        "#rtd-search-form input[name='q']"
-    );
-
-    // Disable Sphinx's built-in "/" search shortcut.
-    function disableSphinxShortcut() {
-        if (typeof DOCUMENTATION_OPTIONS !== "undefined")
-            DOCUMENTATION_OPTIONS.ENABLE_SEARCH_SHORTCUTS = false;
+(function () {
+    // Disable Sphinx's built-in "/" shortcut so it doesn't compete.
+    // Done before the touch-device early return so it applies there too.
+    if (typeof DOCUMENTATION_OPTIONS !== "undefined") {
+        DOCUMENTATION_OPTIONS.ENABLE_SEARCH_SHORTCUTS = false;
     }
 
-    // Focus the search input on Ctrl+K; blur it on Escape.
-    function initCtrlK(input) {
-        if (!input) return;
-        document.addEventListener("keydown", function (e) {
-            if (e.ctrlKey && e.key === "k") {
+    if (/Mac|iP(hone|ad|od)/.test(navigator.platform)) {
+        const kbd = document.querySelector(".search-kbd kbd");
+        if (kbd) {
+            kbd.textContent = "⌘";
+        }
+    }
+
+    if (window.matchMedia("(pointer: coarse)").matches) {
+        return;
+    }
+
+    function getInput() {
+        return document.getElementById("search-input");
+    }
+
+    // Re-submitting the same query on the search page is a browser
+    // no-op (URL doesn't change). Force a reload only in that case;
+    // for a real navigation, let the browser do its thing.
+    getInput()?.form?.addEventListener("submit", (e) => {
+        const form = e.currentTarget;
+        const action = new URL(form.action, location.href);
+        action.search = "?" + new URLSearchParams(new FormData(form));
+        if (
+            action.pathname === location.pathname &&
+            action.search === location.search
+        ) {
+            e.preventDefault();
+            location.reload();
+        }
+    });
+
+    // ---- Ctrl+K + Esc on the sidebar input -------------------------
+
+    document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+            const input = getInput();
+            if (input) {
                 e.preventDefault();
-                if (document.activeElement === input)
+                if (document.activeElement === input) {
                     input.blur();
+                }
                 else {
                     input.focus();
                     input.select();
                 }
             }
-            else if (e.key === "Escape" && document.activeElement === input)
+            return;
+        }
+        if (e.key === "Escape") {
+            const input = getInput();
+            if (input && document.activeElement === input) {
+                input.value = "";
                 input.blur();
-        });
-    }
+            }
+        }
+    });
 
-    // Inject the Ctrl+K visual badge inside the search input.
-    function initCtrlKBadge(input) {
-        if (!input) return;
-        var wrapper = document.createElement("div");
-        wrapper.className = "search-input-wrapper";
-        input.parentNode.insertBefore(wrapper, input);
-        wrapper.appendChild(input);
-
-        var badge = document.createElement("span");
-        badge.className = "search-kbd-hint";
-        badge.innerHTML =
-            "<kbd>Ctrl</kbd><span class='search-kbd-sep'>+</span><kbd>K</kbd>";
-        wrapper.appendChild(badge);
-
-        input.addEventListener("focus", function () { badge.style.opacity = "0"; });
-        input.addEventListener("blur",  function () { badge.style.opacity = ""; });
-    }
-
-    // Enable Up/Down arrow navigation and Enter to open on the
-    // search results page. The first result is auto-selected once
-    // results finish loading.
-    function initResultsNavigation(searchInput) {
-        var container = document.getElementById("search-results");
-        if (!container) return;
-
-        var activeIndex = -1;
-
-        // Return the current list of result <li> elements.
-        function getResults() {
-            return Array.from(container.querySelectorAll("ul.search li"));
+    // ---- Arrow-key navigation on the search results page -----------
+    (function () {
+        const container = document.getElementById("search-results");
+        if (!container) {
+            return;
         }
 
-        // Highlight the result at `index` and scroll it into view.
+        const pageInput = document.querySelector(".search-page-input");
+        const sidebarInput = getInput();
+        let activeIndex = -1;
+
+        function getResults() {
+            return Array.from(container.querySelectorAll("ul.search > li"));
+        }
+
         function setActive(index) {
-            var results = getResults();
-            if (!results.length) return;
+            const results = getResults();
+            if (!results.length) {
+                return;
+            }
             index = Math.max(0, Math.min(index, results.length - 1));
-            results.forEach(function (li) {
+            results.forEach((li) => {
                 li.classList.remove("search-result-active");
             });
             activeIndex = index;
             results[index].classList.add("search-result-active");
+            const link = results[index].querySelector("a");
+            if (link) {
+                link.focus({ preventScroll: true });
+            }
             results[index].scrollIntoView({ block: "nearest" });
         }
 
-        // Remove highlight from all results.
         function clearActive() {
             activeIndex = -1;
-            getResults().forEach(function (li) {
+            getResults().forEach((li) => {
                 li.classList.remove("search-result-active");
             });
         }
 
-        initResultsObserver(container, getResults, clearActive, setActive);
-        initNavigationKeys(searchInput, getResults, setActive, clearActive);
-
-        // Watch for new <li> elements and auto-select the first result
-        // once the batch finishes loading.
-        function initResultsObserver(container, getResults, clearActive, setActive) {
-            var debounceTimer;
-            new MutationObserver(function (mutations) {
-                var hasNewLi = mutations.some(function (m) {
-                    return Array.from(m.addedNodes).some(function (n) {
-                        return n.tagName === "LI";
-                    });
+        // When Sphinx adds new <li>s, drop any prior selection.
+        new MutationObserver((mutations) => {
+            const hasNewLi = mutations.some((m) => {
+                return Array.from(m.addedNodes).some((n) => {
+                    return n.tagName === "LI";
                 });
-                if (!hasNewLi) return;
+            });
+            if (hasNewLi) {
                 clearActive();
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function () {
-                    if (getResults().length) setActive(0);
-                }, 80);
-            }).observe(container, { childList: true, subtree: true });
+            }
+        }).observe(container, { childList: true, subtree: true });
+
+        function isSearchInput(el) {
+            return el && (el === sidebarInput || el === pageInput);
         }
 
-        // Handle arrow-key navigation and Enter to open the active
-        // result. Down from the search input moves to the first result.
-        function initNavigationKeys(searchInput, getResults, setActive, clearActive) {
-            document.addEventListener("keydown", function (e) {
-                if (!getResults().length) return;
-                if (document.activeElement === searchInput) {
-                    if (e.key !== "ArrowDown") return;
-                    e.preventDefault();
-                    searchInput.blur();
-                    setActive(0);
+        document.addEventListener("keydown", (e) => {
+            if (!getResults().length) {
+                return;
+            }
+            if (isSearchInput(document.activeElement)) {
+                if (e.key !== "ArrowDown") {
                     return;
                 }
-                if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setActive(activeIndex === -1 ? 0 : activeIndex + 1);
+                e.preventDefault();
+                setActive(0);
+                return;
+            }
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive(activeIndex === -1 ? 0 : activeIndex + 1);
+            }
+            else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (activeIndex > 0) {
+                    setActive(activeIndex - 1);
                 }
-                else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    if (activeIndex > 0)
-                        setActive(activeIndex - 1);
-                }
-                else if (e.key === "Enter" && activeIndex >= 0) {
-                    e.preventDefault();
-                    var link = getResults()[activeIndex].querySelector("a");
-                    if (link)
-                        link.click();
-                }
-            });
-        }
-    }
-
-    disableSphinxShortcut();
-    initCtrlK(searchInput);
-    initCtrlKBadge(searchInput);
-    initResultsNavigation(searchInput);
-});
+            }
+        });
+    })();
+})();

@@ -1,18 +1,21 @@
-.. note::
-   psutil 8.0 introduces breaking API changes. See the
-   :ref:`migration guide <migration-8.0>` if upgrading from 7.x.
 
 API reference
 =============
 
 Complete reference for all psutil classes and functions. Provided as a single
-HTML page for ease of searchability.
+HTML page for ease of searchability. For a high-level overview with short
+examples see :doc:`api-overview`.
+
+.. note::
+   psutil 8.0 introduces breaking API changes. See the
+   :ref:`migration guide <migration-8.0>` if upgrading from 7.x.
+
+.. tip::
+   Press :kbd:`@` to quickly jump to a function, class, or method definition.
 
 .. contents::
    :local:
    :depth: 1
-
-For a high-level overview with short examples see :doc:`api-overview`.
 
 System related functions
 ------------------------
@@ -80,10 +83,6 @@ CPU
     this might not be the case (at least on Windows and Linux), see
     `#1210 <https://github.com/giampaolo/psutil/issues/1210#issuecomment-363046156>`_.
 
-  .. versionchanged:: 4.1.0
-     Windows: added :field:`irq` and :field:`dpc` fields (:field:`irq` was
-     called :field:`interrupt` before 8.0.0).
-
   .. versionchanged:: 8.0.0
      Windows: :field:`interrupt` field was renamed to :field:`irq`;
      :field:`interrupt` still works but raises :exc:`DeprecationWarning`.
@@ -98,12 +97,19 @@ CPU
 
   Return the current system-wide CPU utilization as a percentage.
 
-  If *interval* is > ``0.0``, measures CPU times before and after the interval
-  (blocking). If ``0.0`` or ``None``, returns the utilization since the last
-  call or module import, returning immediately. That means the first time this
-  is called it will return a meaningless ``0.0`` value which you are supposed
-  to ignore. In this case it is recommended for accuracy that this function be
-  called with at least ``0.1`` seconds between calls.
+  *interval* is expressed in seconds. If *interval* is > ``0.0``, measures CPU
+  times before and after the interval (blocking). If ``0.0`` or ``None``,
+  returns the utilization since the last call or module import, returning
+  immediately. That means the first time this is called it will return a
+  meaningless ``0.0`` value which you are supposed to ignore. In this case it
+  is recommended for accuracy that this function be called with at least
+  ``0.1`` seconds between calls.
+
+  If *percpu* is ``False``, the result is based on aggregate CPU times across
+  all :term:`logical CPUs <logical CPU>`, normalized to a range of ``0.0`` to
+  ``100.0``. For example, on a system with 4 logical CPUs, if one CPU is fully
+  busy and the other three are idle, the result is approximately ``25.0``.
+  Unlike :meth:`Process.cpu_percent`, returned values cannot exceed ``100.0``.
 
   If *percpu* is ``True``, returns a list of floats representing each
   :term:`logical CPU`. The list is ordered by CPU index and consistent across
@@ -124,10 +130,12 @@ CPU
      2.9
      >>> # blocking, per-cpu
      >>> psutil.cpu_percent(interval=1, percpu=True)
-     [5.6, 1.0]
+     [4.0, 6.9, 3.7, 9.2]
      >>>
 
-  .. seealso:: :ref:`faq_cpu_percent`
+  .. seealso::
+    - :ref:`faq_cpu_percent`
+    - :ref:`why Process.cpu_percent() can exceed 100% <faq_cpu_percent_gt_100>`
 
   .. versionchanged:: 5.9.6
      the function is now thread safe.
@@ -139,11 +147,8 @@ CPU
   in :func:`cpu_percent`. On Linux, :field:`guest` and :field:`guest_nice`
   percentages are not accounted in :field:`user` and :field:`user_nice`.
 
-  .. seealso:: :ref:`faq_cpu_percent`
-
-  .. versionchanged:: 4.1.0
-     Windows: added :field:`irq` and :field:`dpc` fields (:field:`irq` was
-     called :field:`interrupt` before 8.0.0).
+  .. seealso::
+    - :ref:`faq_cpu_percent`
 
   .. versionchanged:: 5.9.6
      function is now thread safe.
@@ -178,7 +183,8 @@ CPU
      >>> len(psutil.Process().cpu_affinity())
      1
 
-  .. seealso:: :ref:`faq_cpu_count`
+  .. seealso::
+    - :ref:`faq_cpu_count`
 
 .. function:: cpu_stats()
 
@@ -200,8 +206,6 @@ CPU
      >>> psutil.cpu_stats()
      scpustats(ctx_switches=20455687, interrupts=6598984, soft_interrupts=2134212, syscalls=0)
 
-  .. versionadded:: 4.1.0
-
 .. function:: cpu_freq(percpu=False)
 
   Return :field:`current`, :field:`min` and :field:`max` CPU frequencies
@@ -216,6 +220,11 @@ CPU
   If :field:`min` and :field:`max` cannot be determined they are set to
   ``0.0``.
 
+  On some systems the CPU frequency cannot be determined at all (e.g. certain
+  virtual machines, containers or CPU architectures). In that case this returns
+  ``None``, or an empty list if *percpu* is ``True``. This can happen on Linux,
+  macOS and FreeBSD; on Windows and OpenBSD a value is always returned.
+
   .. code-block:: pycon
 
      >>> import psutil
@@ -229,13 +238,15 @@ CPU
 
   .. availability:: Linux, macOS, Windows, FreeBSD, OpenBSD.
 
-  .. versionadded:: 5.1.0
-
   .. versionchanged:: 5.5.1
      added FreeBSD support.
 
   .. versionchanged:: 5.9.1
      added OpenBSD support.
+
+  .. versionchanged:: 8.0.0
+     on macOS ARM64 this may return ``None`` when CPU frequency data is
+     unavailable (e.g. on virtual machines), instead of raising.
 
 .. function:: getloadavg()
 
@@ -257,8 +268,6 @@ CPU
      >>> [x / psutil.cpu_count() * 100 for x in psutil.getloadavg()]
      [31.4, 38.9, 46.7]
 
-  .. versionadded:: 5.6.2
-
 Memory
 ^^^^^^
 
@@ -269,10 +278,8 @@ Memory
 
   - :field:`total`: total physical RAM.
   - :field:`available`: memory that can be given instantly to processes without
-    the system going into :term:`swap <swap memory>`. On Linux it uses the
-    ``MemAvailable`` field from ``/proc/meminfo`` *(kernel 3.14+)*; on older
-    kernels it falls back to an estimate. This is the recommended field for
-    monitoring actual memory usage in a cross-platform fashion. See
+    the system going into :term:`swap <swap memory>`. This is the recommended
+    field for monitoring actual memory usage in a cross-platform fashion. See
     :term:`available memory`.
   - :field:`percent`: the percentage usage calculated as
     ``(total - available) / total * 100``.
@@ -300,7 +307,7 @@ Memory
   - :field:`shared` *(Linux, BSD)*: :term:`shared memory` accessible by
     multiple processes simultaneously, such as in-memory ``tmpfs`` and POSIX
     shared memory objects (``shm_open``). On Linux this corresponds to
-    ``Shmem`` in ``/proc/meminfo`` and is already counted within
+    ``Shmem`` in :proc:`/proc/meminfo` and is already counted within
     :field:`active` / :field:`inactive`.
   - :field:`slab` *(Linux)*: memory used by the kernel's internal object caches
     (e.g. inode and dentry caches). The reclaimable portion (``SReclaimable``)
@@ -310,12 +317,13 @@ Memory
     disk.
 
   Below is a table showing implementation details. All info on Linux is
-  retrieved from `/proc/meminfo`_. On macOS via ``host_statistics64()``. On
-  Windows via `GetPerformanceInfo`_.
+  retrieved from :proc:`/proc/meminfo`. On macOS via ``host_statistics64()``.
+  On Windows via `GetPerformanceInfo`_.
 
   .. list-table::
      :header-rows: 1
      :widths: 9 15 14 14 26
+     :class: wide-table
 
      * - Field
        - Linux
@@ -409,15 +417,9 @@ Memory
     fields.
 
   .. seealso::
-    - `scripts/meminfo.py`_
+    - :src:`scripts/meminfo.py`
     - :ref:`faq_virtual_memory_available`
     - :ref:`faq_used_plus_free`
-
-  .. versionchanged:: 4.2.0
-     Linux: added :field:`shared` field.
-
-  .. versionchanged:: 5.4.4
-     Linux: added :field:`slab` field.
 
   .. versionchanged:: 8.0.0
      Windows: added :field:`cached` and :field:`wired` fields.
@@ -451,12 +453,8 @@ Memory
      sswap(total=2097147904, used=886620160, free=1210527744, percent=42.3, sin=1050411008, sout=1906720768)
 
   .. seealso::
-    - `scripts/meminfo.py`_
+    - :src:`scripts/meminfo.py`
     - :ref:`Swap activity recipe <recipe_swap_activity>`
-
-  .. versionchanged:: 5.2.3
-     Linux: use /proc instead of ``sysinfo()`` syscall to support
-     :data:`PROCFS_PATH` usage (e.g. useful for Docker containers ...).
 
   .. versionchanged:: 8.0.0
      OpenBSD: :field:`sin` / :field:`sout` are no longer set to ``0``.
@@ -470,7 +468,7 @@ Disks
   command on UNIX. When *all* is ``False``, virtual/pseudo filesystems (tmpfs,
   sysfs, devtmpfs, cgroup, etc.) are excluded, keeping only physical devices
   (e.g., hard disks, CD-ROM drives, USB keys). The filtering logic varies by
-  platform: on Linux, it checks ``/proc/filesystems`` for ``nodev``-flagged
+  platform: on Linux, it checks :proc:`/proc/filesystems` for ``nodev``-flagged
   types (ZFS is always included); on macOS, it checks whether the device path
   exists; on SunOS and AIX, it excludes filesystems with zero total size. On
   BSD, *all* is ignored and all partitions are always returned.
@@ -491,7 +489,8 @@ Disks
      [sdiskpart(device='/dev/sda3', mountpoint='/', fstype='ext4', opts='rw,errors=remount-ro'),
       sdiskpart(device='/dev/sda7', mountpoint='/home', fstype='ext4', opts='rw')]
 
-  .. seealso:: `scripts/disk_usage.py`_.
+  .. seealso::
+    - :src:`scripts/disk_usage.py`
 
   .. versionchanged:: 5.7.4
      added :field:`maxfile` and :field:`maxpath` fields.
@@ -506,7 +505,7 @@ Disks
   :field:`free` space, plus the :field:`percentage` usage. On UNIX, *path* must
   point to a path within a **mounted** filesystem partition. This function was
   later incorporated in Python 3.3 as :func:`shutil.disk_usage` (see
-  `BPO-12442`_).
+  :bpo:`12442`).
 
   .. code-block:: pycon
 
@@ -521,14 +520,13 @@ Disks
     :field:`percent` may appear ~5% higher than expected. All values match the
     ``df`` command line utility.
 
-  .. seealso:: `scripts/disk_usage.py`_.
-
-  .. versionchanged:: 4.3.0
-     :field:`percent` value takes root reserved space into account.
+  .. seealso::
+    - :src:`scripts/disk_usage.py`
 
 .. function:: disk_io_counters(perdisk=False, nowrap=True)
 
-  Return system-wide disk I/O statistics:
+  Return system-wide disk I/O statistics. All fields are
+  :term:`cumulative counters <cumulative counter>` since boot.
 
   - :field:`read_count`: number of reads.
   - :field:`write_count`: number of writes.
@@ -575,27 +573,17 @@ Disks
      this function might not detect any disks.
 
   .. seealso::
-     - `scripts/iotop.py`_
+     - :src:`scripts/iotop.py`
      - :ref:`Real-time disk I/O recipe <recipe_disk_io>`
      - :ref:`Real-time disk I/O percent recipe <recipe_disk_io_percent>`
-
-  .. versionchanged:: 5.3.0
-     numbers no longer wrap (restart from zero) across calls thanks to new
-     *nowrap* argument.
-
-  .. versionchanged:: 4.0.0
-     added :field:`busy_time` (Linux, FreeBSD), :field:`read_merged_count` and
-     :field:`write_merged_count` (Linux) fields.
-
-  .. versionchanged:: 4.0.0
-     NetBSD: removed :field:`read_time` and :field:`write_time` fields.
 
 Network
 ^^^^^^^
 
 .. function:: net_io_counters(pernic=False, nowrap=True)
 
-  Return system-wide network I/O statistics:
+  Return system-wide network I/O statistics. All fields are
+  :term:`cumulative counters <cumulative counter>` since boot.
 
   - :field:`bytes_sent`: number of bytes sent.
   - :field:`bytes_recv`: number of bytes received.
@@ -607,7 +595,7 @@ Network
     :term:`NIC` level. Unlike :field:`errin`, drops indicate the interface or
     kernel buffer was overwhelmed.
   - :field:`dropout`: total number of outgoing packets dropped (always 0 on
-    macOS and BSD). A non-zero and growing count is a sign of network
+    macOS and NetBSD). A non-zero and growing count is a sign of network
     saturation.
 
   If *pernic* is ``True``, return the same information for every network
@@ -631,11 +619,12 @@ Network
      {'lo': snetio(bytes_sent=547971, bytes_recv=547971, packets_sent=5075, packets_recv=5075, errin=0, errout=0, dropin=0, dropout=0),
       'wlan0': snetio(bytes_sent=13921765, bytes_recv=62162574, packets_sent=79097, packets_recv=89648, errin=0, errout=0, dropin=0, dropout=0)}
 
-  .. seealso:: `scripts/nettop.py`_ and `scripts/ifconfig.py`_.
+  .. seealso::
+    - :src:`scripts/nettop.py`
+    - :src:`scripts/ifconfig.py`
 
-  .. versionchanged:: 5.3.0
-     numbers no longer wrap (restart from zero) across calls thanks to new
-     *nowrap* argument.
+  .. versionchanged:: 8.0.0
+     FreeBSD, OpenBSD: :field:`dropout` is no longer always ``0``.
 
 .. function:: net_connections(kind="inet")
 
@@ -715,15 +704,7 @@ Network
   .. seealso::
 
     - :meth:`Process.net_connections` to get per-process connections
-    - `scripts/netstat.py`_
-
-  .. versionadded:: 2.1.0
-
-  .. versionchanged:: 5.3.0
-     socket :field:`fd` is now set for real instead of being ``-1``.
-
-  .. versionchanged:: 5.3.0
-    :field:`laddr` and :field:`raddr` are named tuples.
+    - :src:`scripts/netstat.py`
 
   .. versionchanged:: 5.9.5
      OpenBSD: retrieve :field:`laddr` path for :data:`socket.AF_UNIX` sockets
@@ -760,16 +741,9 @@ Network
                 snicaddr(family=<AddressFamily.AF_LINK: 17>, address='c4:85:08:45:06:41', netmask=None, broadcast='ff:ff:ff:ff:ff:ff', ptp=None)]}
      >>>
 
-  .. seealso:: `scripts/nettop.py`_ and `scripts/ifconfig.py`_.
-
-  .. versionadded:: 3.0.0
-
-  .. versionchanged:: 3.2.0
-     added :field:`ptp` field.
-
-  .. versionchanged:: 4.4.0
-     Windows: added support for :field:`netmask` field, which is no longer
-     ``None``.
+  .. seealso::
+    - :src:`scripts/nettop.py`
+    - :src:`scripts/ifconfig.py`
 
   .. versionchanged:: 7.0.0
      Windows: added support for :field:`broadcast` field, which is no longer
@@ -794,9 +768,9 @@ Network
      {'eth0': snicstats(isup=True, duplex=<NicDuplex.NIC_DUPLEX_FULL: 2>, speed=100, mtu=1500, flags='up,broadcast,running,multicast'),
       'lo': snicstats(isup=True, duplex=<NicDuplex.NIC_DUPLEX_UNKNOWN: 0>, speed=0, mtu=65536, flags='up,loopback,running')}
 
-  .. seealso:: `scripts/nettop.py`_ and `scripts/ifconfig.py`_.
-
-  .. versionadded:: 3.0.0
+  .. seealso::
+    - :src:`scripts/nettop.py`
+    - :src:`scripts/ifconfig.py`
 
   .. versionchanged:: 5.7.3
      UNIX: :field:`isup` also reflects whether the :term:`NIC` is running.
@@ -835,11 +809,11 @@ Sensors
                    shwtemp(label='Core 2', current=45.0, high=100.0, critical=100.0),
                    shwtemp(label='Core 3', current=47.0, high=100.0, critical=100.0)]}
 
-  .. seealso:: `scripts/temperatures.py`_ and `scripts/sensors.py`_.
+  .. seealso::
+    - :src:`scripts/temperatures.py`
+    - :src:`scripts/sensors.py`
 
   .. availability:: Linux, FreeBSD
-
-  .. versionadded:: 5.1.0
 
   .. versionchanged:: 5.5.0
      added FreeBSD support.
@@ -855,11 +829,11 @@ Sensors
      >>> psutil.sensors_fans()
      {'asus': [sfan(label='cpu_fan', current=3200)]}
 
-  .. seealso:: `scripts/fans.py`_ and `scripts/sensors.py`_.
+  .. seealso::
+    - :src:`scripts/fans.py`
+    - :src:`scripts/sensors.py`
 
   .. availability:: Linux
-
-  .. versionadded:: 5.2.0
 
 .. function:: sensors_battery()
 
@@ -889,14 +863,11 @@ Sensors
      >>> print("charge = %s%%, time left = %s" % (battery.percent, secs2hours(battery.secsleft)))
      charge = 93%, time left = 4:37:08
 
-  .. seealso:: `scripts/battery.py`_ and `scripts/sensors.py`_.
+  .. seealso::
+    - :src:`scripts/battery.py`
+    - :src:`scripts/sensors.py`
 
   .. availability:: Linux, Windows, macOS, FreeBSD
-
-  .. versionadded:: 5.1.0
-
-  .. versionchanged:: 5.4.2
-     added macOS support.
 
 -------------------------------------------------------------------------------
 
@@ -940,8 +911,10 @@ Other system info
      [suser(name='giampaolo', terminal='pts/2', host='localhost', started=1340737536.0, pid=1352),
       suser(name='giampaolo', terminal='pts/3', host='localhost', started=1340737792.0, pid=1788)]
 
-  .. versionchanged:: 5.3.0
-     added :field:`pid` field.
+  .. note::
+    On UNIX this reads the ``utmp`` database, and returns an empty list if
+    nothing maintains it, e.g. on musl libc (Alpine Linux), which doesn't
+    implement it. ``who`` is empty too in that case.
 
 -------------------------------------------------------------------------------
 
@@ -1018,10 +991,8 @@ Functions
     :func:`process_iter` call will overwrite or clear any previously
     pre-fetched values. Do not rely on cached values from a prior iteration.
 
-  .. seealso:: :ref:`perf-process-iter`
-
-  .. versionchanged:: 5.3.0
-     added *attrs* and *ad_value* arguments.
+  .. seealso::
+    - :ref:`perf-process-iter`
 
   .. versionchanged:: 6.0.0
 
@@ -1043,7 +1014,8 @@ Functions
   Check whether the given PID exists in the current process list. This is
   faster than doing ``pid in psutil.pids()``, and should be preferred.
 
-  .. seealso:: :ref:`faq_pid_exists_vs_isrunning`
+  .. seealso::
+    - :ref:`faq_pid_exists_vs_isrunning`
 
 .. function:: wait_procs(procs, timeout=None, callback=None)
 
@@ -1093,7 +1065,8 @@ Exceptions
   attribute is set only if :meth:`Process.name` was called before the process
   disappeared.
 
-  .. seealso:: :ref:`faq_no_such_process`
+  .. seealso::
+    - :ref:`faq_no_such_process`
 
 .. exception:: ZombieProcess(pid, name=None, ppid=None, msg=None)
 
@@ -1105,9 +1078,8 @@ Exceptions
   If you do not need to detect zombies, you can ignore this exception and just
   catch :exc:`NoSuchProcess`.
 
-  .. seealso:: :ref:`faq_zombie_process`
-
-  .. versionadded:: 3.0.0
+  .. seealso::
+    - :ref:`faq_zombie_process`
 
 .. exception:: AccessDenied(pid=None, name=None, msg=None)
 
@@ -1115,7 +1087,8 @@ Exceptions
   insufficient privileges. *name* is set if :meth:`Process.name` was called
   before the exception was raised.
 
-  .. seealso:: :ref:`faq_access_denied`
+  .. seealso::
+    - :ref:`faq_access_denied`
 
 .. exception:: TimeoutExpired(seconds, pid=None, name=None, msg=None)
 
@@ -1136,10 +1109,13 @@ Process class
   by :meth:`threads`).
 
   When calling methods of this class, always be prepared to catch
-  :exc:`NoSuchProcess` and :exc:`AccessDenied` exceptions. The builtin
-  :func:`hash` can be used on instances to uniquely identify a process over
-  time (the hash combines PID and creation time), so instances can also be used
-  in a :class:`set`.
+  :exc:`NoSuchProcess` and :exc:`AccessDenied` exceptions. Instances can be
+  compared for equality and used in a :class:`set` or as :class:`dict` keys:
+  two instances are equal if they have the same PID and creation time. If the
+  creation time of either instance is unknown (e.g. on :exc:`AccessDenied`, or
+  for zombie processes), identity falls back on the PID alone. The same applies
+  on the platforms where creation time is not part of process identity (see
+  :ref:`faq_pid_reuse`).
 
   .. note::
 
@@ -1148,7 +1124,8 @@ Process class
     process. To prevent this, use :meth:`is_running` first. Some methods (e.g.,
     setters and signal-related methods) perform an additional check using PID +
     creation time, and will raise :exc:`NoSuchProcess` if the PID has been
-    reused. See :ref:`faq_pid_reuse` for details.
+    reused. This check is not available on all platforms. See
+    :ref:`faq_pid_reuse` for details.
 
   .. note::
 
@@ -1186,7 +1163,8 @@ Process class
     ``p.name()`` instead of ``p.info['name']``) or :func:`process_iter` +
     :meth:`Process.as_dict` if you need a dict structure.
 
-    .. seealso:: :ref:`migration guide <migration-8.0>`.
+    .. seealso::
+      - :ref:`migration guide <migration-8.0>`
 
     .. deprecated:: 8.0.0
 
@@ -1211,70 +1189,21 @@ Process class
        ...
        >>>
 
-    The table below lists methods that benefit from the speedup, grouped by
-    platform. Methods separated by an empty row share the same underlying
-    system call. The *speedup* row estimates the gain when all listed methods
-    are called together (best case), as measured by
-    `bench_oneshot.py <https://github.com/giampaolo/psutil/blob/master/scripts/internal/bench_oneshot.py>`_
-    script.
-
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | Linux                        | Windows                       | macOS                        | BSD                          | SunOS                    | AIX                      |
-    +==============================+===============================+==============================+==============================+==========================+==========================+
-    | :meth:`cpu_num`              | :meth:`~Process.cpu_percent`  | :meth:`~Process.cpu_percent` | :meth:`cpu_num`              | :meth:`name`             | :meth:`name`             |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`~Process.cpu_percent` | :meth:`cpu_times`             | :meth:`cpu_times`            | :meth:`~Process.cpu_percent` | :meth:`cmdline`          | :meth:`cmdline`          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`cpu_times`            | :meth:`io_counters`           | :meth:`memory_info`          | :meth:`cpu_times`            | :meth:`create_time`      | :meth:`create_time`      |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`create_time`          | :meth:`memory_info`           | :meth:`memory_percent`       | :meth:`create_time`          |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`name`                 | :meth:`memory_info_ex`        | :meth:`num_ctx_switches`     | :meth:`gids`                 | :meth:`memory_info`      | :meth:`memory_info`      |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`page_faults`          | :meth:`num_ctx_switches`      | :meth:`num_threads`          | :meth:`io_counters`          | :meth:`memory_percent`   | :meth:`memory_percent`   |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`ppid`                 | :meth:`num_handles`           |                              | :meth:`name`                 | :meth:`num_threads`      | :meth:`num_threads`      |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`status`               | :meth:`num_threads`           | :meth:`create_time`          | :meth:`memory_info`          | :meth:`ppid`             | :meth:`ppid`             |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`terminal`             |                               | :meth:`gids`                 | :meth:`memory_percent`       | :meth:`status`           | :meth:`status`           |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    |                              | :meth:`exe`                   | :meth:`name`                 | :meth:`num_ctx_switches`     | :meth:`terminal`         | :meth:`terminal`         |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`gids`                 | :meth:`name`                  | :meth:`ppid`                 | :meth:`ppid`                 |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`memory_info_ex`       |                               | :meth:`status`               | :meth:`status`               | :meth:`gids`             | :meth:`gids`             |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`num_ctx_switches`     |                               | :meth:`terminal`             | :meth:`terminal`             | :meth:`uids`             | :meth:`uids`             |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`num_threads`          |                               | :meth:`terminal`             | :meth:`terminal`             | :meth:`uids`             | :meth:`uids`             |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`uids`                 |                               | :meth:`uids`                 | :meth:`uids`                 | :meth:`username`         | :meth:`username`         |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`username`             |                               | :meth:`username`             | :meth:`username`             |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    |                              |                               |                              |                              |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`memory_footprint`     |                               |                              |                              |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | :meth:`memory_maps`          |                               |                              |                              |                          |                          |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
-    | *speedup: +1.8x*             | *speedup: +1.8x / +6.5x*      | *speedup: +1.9x*             | *speedup: +2.0x*             | *speedup: +1.3x*         | *speedup: +1.3x*         |
-    +------------------------------+-------------------------------+------------------------------+------------------------------+--------------------------+--------------------------+
+    Which methods share a syscall, and therefore get cached, depends on the
+    platform, so the example above is indicative. See
+    :ref:`perf-oneshot-methods` for the full list.
 
     .. seealso::
+      - :doc:`performance`
       - :doc:`/blog/2016/500-is-twice-as-fast`
-      - :ref:`perf-oneshot`
-      - :ref:`perf-oneshot-bench`
-
-    .. versionadded:: 5.0.0
 
   .. method:: name()
 
     The process name. On Windows the return value is cached after first call.
     Not on POSIX because the process name may change.
 
-    .. seealso:: how to :ref:`find a process by name <recipe_find_process_by_name>`.
+    .. seealso::
+      - :ref:`Find process by name recipe <recipe_find_process_by_name>`
 
   .. method:: exe()
 
@@ -1315,11 +1244,6 @@ Process class
       on macOS Big Sur this function returns something meaningful only for the
       current process or in
       `other specific circumstances <https://github.com/apple/darwin-xnu/blob/2ff845c2e033bd0ff64b5b6aa6063a1f8f65aa32/bsd/kern/kern_sysctl.c#L1315-L1321>`_.
-
-    .. versionadded:: 4.0.0
-
-    .. versionchanged:: 5.3.0
-       added SunOS support.
 
     .. versionchanged:: 5.6.3
        added AIX support.
@@ -1373,14 +1297,6 @@ Process class
        {'username': 'giampaolo', 'pid': 12366, 'name': 'python', ...}
        >>>
 
-    .. versionchanged:: 3.0.0
-       *ad_value* is used also when incurring into :exc:`ZombieProcess`
-       exception, not only :exc:`AccessDenied`.
-
-    .. versionchanged:: 4.5.0
-       :meth:`as_dict` is considerably faster thanks to :meth:`oneshot` context
-       manager.
-
   .. method:: ppid()
 
     The process parent PID. On Windows the return value is cached after the
@@ -1400,8 +1316,6 @@ Process class
     Utility method which returns the parents of this process as a list of
     :class:`Process` instances. If no parents are known return an empty list.
     See also :meth:`ppid` and :meth:`parent` methods.
-
-    .. versionadded:: 5.6.0
 
   .. method:: status()
 
@@ -1477,7 +1391,7 @@ Process class
        <ProcessPriority.HIGH_PRIORITY_CLASS: 32768>
 
     This method was later incorporated in Python 3.3 as :func:`os.getpriority`
-    and :func:`os.setpriority` (see `BPO-10784`_).
+    and :func:`os.setpriority` (see :bpo:`10784`).
 
     .. versionchanged:: 8.0.0
        on Windows, the return value is now a :class:`ProcessPriority` enum
@@ -1531,7 +1445,8 @@ Process class
        >>> p.rlimit(psutil.RLIMIT_FSIZE)                # get current limits of ...
        (1024, 1024)
 
-    .. seealso:: `scripts/procinfo.py`_.
+    .. seealso::
+      - :src:`scripts/procinfo.py`
 
     .. availability:: Linux, FreeBSD
 
@@ -1543,10 +1458,10 @@ Process class
     Return process I/O statistics. All fields are
     :term:`cumulative counters <cumulative counter>` since process creation.
 
-    - :field:`read_count`: number of read syscalls (e.g., ``read()``,
-      ``pread()``).
-    - :field:`write_count`: number of write syscalls (e.g., ``write()``,
-      ``pwrite()``).
+    - :field:`read_count`: number of read syscalls (e.g., :manpage:`read(2)`,
+      :manpage:`pread(2)`).
+    - :field:`write_count`: number of write syscalls (e.g.,
+      :manpage:`write(2)`, :manpage:`pwrite(2)`).
     - :field:`read_bytes`: bytes read (``-1`` on BSD).
     - :field:`write_bytes`: bytes written (``-1`` on BSD).
 
@@ -1575,12 +1490,6 @@ Process class
 
     .. availability:: Linux, Windows, BSD, AIX
 
-    .. versionchanged:: 5.2.0
-       Linux: added :field:`read_chars` and :field:`write_chars` fields.
-
-    .. versionchanged:: 5.2.0
-       Windows: added :field:`other_count` and :field:`other_bytes` fields.
-
   .. method:: num_ctx_switches()
 
     The number of :term:`context switches <context switch>` performed by this
@@ -1591,9 +1500,6 @@ Process class
       (Windows, macOS) :field:`involuntary` value is always set to 0, while
       :field:`voluntary` value reflects the total number of context switches
       (voluntary + involuntary). This is a limitation of the OS.
-
-    .. versionchanged:: 5.4.1
-       added AIX support.
 
   .. method:: num_fds()
 
@@ -1628,9 +1534,8 @@ Process class
   .. method:: cpu_times()
 
     Return accumulated process CPU times as
-    :term:`cumulative counters <cumulative counter>` (seconds) (see
-    `explanation <http://stackoverflow.com/questions/556405/>`_). Same as
-    :func:`os.times`, but works for any process PID.
+    :term:`cumulative counters <cumulative counter>` expressed in seconds. Same
+    as :func:`os.times`, but works for any process PID.
 
     - :field:`user`: time spent in user mode.
     - :field:`system`: time spent in kernel mode.
@@ -1651,9 +1556,6 @@ Process class
        >>> sum(p.cpu_times()[:2])  # cumulative, excluding children and iowait
        0.70
 
-    .. versionchanged:: 4.1.0
-       added :field:`children_user` and :field:`children_system` fields.
-
     .. versionchanged:: 5.6.4
        Linux: added :field:`iowait` field.
 
@@ -1662,12 +1564,13 @@ Process class
     Return process CPU utilization as a percentage. Values can exceed ``100.0``
     if the process runs multiple threads on different CPUs.
 
-    If *interval* is > ``0.0``, measures CPU times before and after the
-    interval (blocking). If ``0.0`` or ``None``, returns the utilization since
-    the last call or module import, returning immediately. That means the first
-    time this is called it will return a meaningless ``0.0`` value which you
-    are supposed to ignore. In this case it is recommended for accuracy that
-    this method be called with at least ``0.1`` seconds between calls.
+    *interval* is expressed in seconds. If *interval* is > ``0.0``, measures
+    CPU times before and after the interval (blocking). If ``0.0`` or ``None``,
+    returns the utilization since the last call or module import, returning
+    immediately. That means the first time this is called it will return a
+    meaningless ``0.0`` value which you are supposed to ignore. In this case it
+    is recommended for accuracy that this method be called with at least
+    ``0.1`` seconds between calls.
 
     .. code-block:: pycon
 
@@ -1714,12 +1617,6 @@ Process class
 
     .. availability:: Linux, Windows, FreeBSD
 
-    .. versionchanged:: 2.2.0
-       added support for FreeBSD.
-
-    .. versionchanged:: 5.1.0
-       an empty list can be passed to set affinity against all eligible CPUs.
-
   .. method:: cpu_num()
 
     Return what CPU this process is currently running on. The returned number
@@ -1728,11 +1625,10 @@ Process class
     ``psutil.cpu_percent(percpu=True)`` to observe the system workload
     distributed across multiple CPUs.
 
-    .. seealso:: `scripts/cpu_distribution.py`_.
+    .. seealso::
+      - :src:`scripts/cpu_distribution.py`
 
     .. availability:: Linux, FreeBSD, SunOS
-
-    .. versionadded:: 5.1.0
 
   .. method:: memory_info()
 
@@ -1764,7 +1660,7 @@ Process class
     - :field:`vms`: aka :term:`VMS`. On UNIX matches the ``top`` VIRT column.
       On Windows maps to ``PrivateUsage`` (private committed pages only), which
       differs from the UNIX definition; use :field:`virtual` from
-      :meth:`memory_info_ex` for the true virtual address space size.
+      :meth:`memory_extras` for the true virtual address space size.
 
     - :field:`shared` *(Linux)*: :term:`shared memory` that *could* be shared
       with other processes (shared libraries,
@@ -1778,7 +1674,7 @@ Process class
 
     - :field:`data` *(Linux, BSD)*: aka DRS (Data Resident Set). On Linux this
       covers the data **and** stack segments combined (from
-      ``/proc/<pid>/statm``). On BSD it covers the data segment only (see
+      :proc:`/proc/pid/statm`). On BSD it covers the data segment only (see
       :field:`stack`). Matches ``top``'s DATA column.
 
     - :field:`stack` *(BSD)*: size of the process stack segment. Reported
@@ -1805,9 +1701,7 @@ Process class
     .. seealso::
       - :ref:`faq_memory_rss_vs_vms`
       - :ref:`faq_memory_footprint`
-
-    .. versionchanged:: 4.0.0
-       multiple fields are returned, not only :field:`rss` and :field:`vms`.
+      - :ref:`faq_memory_shared`
 
     .. versionchanged:: 8.0.0 (see :ref:`migration guide <migration-8.0>`)
 
@@ -1822,84 +1716,86 @@ Process class
          :field:`peak_vms`, :field:`num_page_faults` → :meth:`page_faults`
          method. At the same time :field:`paged_pool`, :field:`nonpaged_pool`,
          :field:`peak_paged_pool`, :field:`peak_nonpaged_pool` were moved to
-         :meth:`memory_info_ex`. All these old names still work but raise
+         :meth:`memory_extras`. All these old names still work but raise
          :exc:`DeprecationWarning`.
        - *BSD*: added :field:`peak_rss` field.
 
-  .. method:: memory_info_ex()
+  .. method:: memory_extras()
 
-    Extends :meth:`memory_info` with additional platform-specific memory
-    metrics (all values in bytes). On platforms where extra fields are not
-    implemented this returns the same result as :meth:`memory_info`.
+    Return extra platform-specific memory metrics, complementing
+    :meth:`memory_info` (all values in bytes).
 
     +-------------+----------------+--------------------+
     | Linux       | macOS          | Windows            |
     +=============+================+====================+
-    | peak_rss    | peak_rss       | virtual            |
+    | peak_rss    | phys_footprint | virtual            |
     +-------------+----------------+--------------------+
-    | peak_vms    |                | peak_virtual       |
+    | peak_vms    | peak_footprint | peak_virtual       |
     +-------------+----------------+--------------------+
-    | rss_anon    | rss_anon       | paged_pool         |
+    | rss_anon    |                | paged_pool         |
     +-------------+----------------+--------------------+
-    | rss_file    | rss_file       | nonpaged_pool      |
+    | rss_file    |                | nonpaged_pool      |
     +-------------+----------------+--------------------+
-    | rss_shmem   | wired          | peak_paged_pool    |
+    | rss_shmem   |                | peak_paged_pool    |
     +-------------+----------------+--------------------+
-    | swap        | compressed     | peak_nonpaged_pool |
+    | swap_anon   |                | peak_nonpaged_pool |
     +-------------+----------------+--------------------+
-    | hugetlb     | phys_footprint |                    |
+    | locked      |                |                    |
     +-------------+----------------+--------------------+
 
-    - :field:`peak_rss` *(Linux, macOS)*: see :term:`peak_rss`.
-    - :field:`peak_vms` *(Linux)*: see :term:`peak_vms`.
-    - :field:`rss_anon` *(Linux, macOS)*: resident :term:`anonymous memory`
-      (:term:`heap`, stack, private mappings) not backed by any file. Set to 0
-      on Linux < 4.5.
-    - :field:`rss_file` *(Linux, macOS)*: resident file-backed memory mapped
-      from files (:term:`shared libraries <shared memory>`,
+    Linux:
+
+    - :field:`peak_rss`: see :term:`peak_rss`.
+    - :field:`peak_vms`: see :term:`peak_vms`.
+    - :field:`rss_anon`: resident :term:`anonymous memory` (:term:`heap`,
+      stack, private mappings) not backed by any file. Set to 0 on Linux < 4.5.
+    - :field:`rss_file`: resident file-backed memory mapped from files
+      (:term:`shared libraries <shared memory>`,
       :term:`memory-mapped files <mapped memory>`). Set to 0 on Linux < 4.5.
-    - :field:`rss_shmem` *(Linux)*: resident :term:`shared memory` (``tmpfs``,
+    - :field:`rss_shmem`: resident :term:`shared memory` (``tmpfs``,
       ``shm_open``). ``rss_anon + rss_file + rss_shmem`` equals :field:`rss`.
       Set to 0 on Linux < 4.5.
-    - :field:`wired` *(macOS)*: memory pinned in RAM by the kernel on behalf of
-      this process; cannot be compressed or paged out.
-    - :field:`swap` *(Linux)*: process memory currently in
-      :term:`swap <swap memory>`. Equivalent to ``memory_footprint().swap`` but
-      cheaper, as it reads from ``/proc/<pid>/status`` instead of
-      ``/proc/<pid>/smaps``.
-    - :field:`compressed` *(macOS)*: memory held in the in-RAM memory
-      compressor; not counted in :field:`rss`. A large value signals memory
-      pressure but has not yet triggered :term:`swapping <swap memory>`.
-    - :field:`hugetlb` *(Linux)*: resident memory backed by huge pages. Set to
-      0 on Linux < 4.4.
-    - :field:`phys_footprint` *(macOS)*: total physical memory impact including
-      compressed memory. What Xcode and ``footprint(1)`` report; prefer this
-      over :field:`rss` macOS memory monitoring.
-    - :field:`virtual` *(Windows)*: true virtual address space size, including
+    - :field:`swap_anon`: :term:`anonymous memory` currently in
+      :term:`swap <swap memory>`. Cheaper than :meth:`memory_footprint`'s
+      :field:`swap` (it reads :proc:`/proc/pid/status` instead of smaps) but
+      does not count shmem swap (see :ref:`faq_memory_swap`). Set to 0 on Linux
+      < 2.6.34.
+    - :field:`locked`: locked memory that cannot be
+      :term:`swapped out <swap-out>`. Typically locked via :manpage:`mlock(2)`.
+
+    macOS:
+
+    - :field:`phys_footprint`: memory footprint attributed to the process,
+      including compressed memory. This corresponds to the main memory usage
+      reported by macOS Activity Monitor. Prefer it over :field:`rss`.
+    - :field:`peak_footprint`: the highest :field:`phys_footprint` reached over
+      the process lifetime. Set to 0 on macOS < 10.13.
+
+    Windows (see `PROCESS_MEMORY_COUNTERS_EX`_):
+
+    - :field:`virtual`: true virtual address space size, including
       reserved-but-uncommitted regions (unlike :field:`vms` in
       :meth:`memory_info`).
-    - :field:`peak_virtual` *(Windows)*: peak virtual address space size.
-    - :field:`paged_pool` *(Windows)*: kernel memory used for objects created
-      by this process (open file handles, registry keys, etc.) that the OS may
-      swap to disk under memory pressure.
-    - :field:`nonpaged_pool` *(Windows)*: kernel memory used for objects that
-      must stay in RAM at all times (I/O request packets, device driver
-      buffers, etc.). A large or growing value may indicate a driver memory
-      leak.
-    - :field:`peak_paged_pool` *(Windows)*: peak paged-pool usage.
-    - :field:`peak_nonpaged_pool` *(Windows)*: peak non-paged-pool usage.
+    - :field:`peak_virtual`: peak virtual address space size.
+    - :field:`paged_pool`: kernel memory used for objects created by this
+      process (open file handles, registry keys, etc.) that the OS may swap to
+      disk under memory pressure.
+    - :field:`nonpaged_pool`: kernel memory used for objects that must stay in
+      RAM at all times (I/O request packets, device driver buffers, etc.). A
+      large or growing value may indicate a driver memory leak.
+    - :field:`peak_paged_pool`: peak paged-pool usage.
+    - :field:`peak_nonpaged_pool`: peak non-paged-pool usage.
 
-    For the full definitions of Windows fields see
-    `PROCESS_MEMORY_COUNTERS_EX`_.
+    .. availability:: Linux, macOS, Windows
 
     .. versionadded:: 8.0.0
 
   .. method:: memory_footprint()
 
-    Return :field:`uss`, :field:`pss` and :field:`swap` memory metrics. These
-    give a more accurate picture of actual memory consumption than
-    :meth:`memory_info`. It walks the full process address space, so it is
-    slower than :meth:`memory_info` and may require elevated privileges.
+    Return :field:`uss`, :field:`pss`, :field:`swap` and :field:`shared` memory
+    metrics. These give a more accurate picture of actual memory consumption
+    than :meth:`memory_info`. It walks the full process address space, so it is
+    slower than :meth:`memory_info` and may require higher privileges.
 
     - :field:`uss` *(Linux, macOS, Windows)*: aka :term:`USS`; the
       :term:`private memory` of the process, which would be freed if the
@@ -1912,6 +1808,16 @@ Process class
     - :field:`swap` *(Linux)*: process memory currently in
       :term:`swap <swap memory>`, counted per-mapping.
 
+    - :field:`shared` *(Linux, macOS, Windows)*: resident memory shared with
+      other processes. On Linux this counts pages mapped more than once,
+      usually by other processes, but multiple mappings by this same process
+      count too. It is stricter than :meth:`memory_info`'s :field:`shared`,
+      which also counts shareable pages mapped only once (see
+      :ref:`faq_memory_shared`). On macOS the accounting is per VM object
+      rather than per page, following what ``top`` historically reported as
+      RSHRD. On Windows it counts working set pages shared with at least
+      another process.
+
     Example on Linux:
 
     .. code-block:: pycon
@@ -1919,10 +1825,10 @@ Process class
        >>> import psutil
        >>> p = psutil.Process()
        >>> p.memory_footprint()
-       pfootprint(uss=6545408, pss=6872064, swap=0)
+       pfootprint(uss=6545408, pss=6872064, swap=0, shared=4341760)
 
     .. seealso::
-      - `scripts/procsmem.py`_.
+      - :src:`scripts/procsmem.py`
       - :ref:`faq_memory_footprint`
       - :doc:`/blog/2016/real-process-memory-in-python`
 
@@ -1933,9 +1839,8 @@ Process class
   .. method:: memory_full_info()
 
     This deprecated method returns the same information as :meth:`memory_info`
-    plus :meth:`memory_footprint` in a single named tuple.
-
-    .. versionadded:: 4.0.0
+    plus :meth:`memory_footprint`'s :field:`uss`, :field:`pss` and
+    :field:`swap` in a single named tuple.
 
     .. deprecated:: 8.0.0
        use :meth:`memory_footprint` instead. See
@@ -1951,11 +1856,11 @@ Process class
        Process().memory_info().rss / virtual_memory().total * 100
 
     *memtype* selects which memory field to use and can be any attribute from
-    :meth:`memory_info`, :meth:`memory_info_ex`, or :meth:`memory_footprint`
-    (default is ``"rss"``).
+    :meth:`memory_info`, :meth:`memory_extras`, or :meth:`memory_footprint`
+    (default is ``"rss"``). The divisor is always total physical memory,
+    regardless of *memtype*. The result is rounded to 2 decimal places.
 
-    .. versionchanged:: 4.0.0
-       added *memtype* parameter.
+    .. versionchanged:: 8.0.0 the result is rounded to 2 decimal places.
 
   .. method:: memory_maps(grouped=True)
 
@@ -1991,7 +1896,7 @@ Process class
     | swap          |         |              |           |
     +---------------+---------+--------------+-----------+
 
-    Linux fields (from ``/proc/<pid>/smaps``):
+    Linux fields (from :proc:`/proc/pid/smaps`):
 
     - :field:`rss`: :term:`RSS` for this mapping.
     - :field:`size`: total virtual size; may far exceed :field:`rss` if parts
@@ -2027,7 +1932,8 @@ Process class
         pmmap_grouped(path='/lib/x8664-linux-gnu/libc-2.15.so', rss=3821568, size=3842048, pss=3821568, shared_clean=0, shared_dirty=0, private_clean=0, private_dirty=3821568, referenced=3575808, anonymous=3821568, swap=0),
         ...]
 
-    .. seealso:: `scripts/pmap.py`_.
+    .. seealso::
+      - :src:`scripts/pmap.py`
 
     .. availability:: Linux, Windows, FreeBSD, SunOS
 
@@ -2062,7 +1968,8 @@ Process class
     is well illustrated by this
     `unit test <https://github.com/giampaolo/psutil/blob/65a52341b55faaab41f68ebc4ed31f18f0929754/psutil/tests/test_process.py#L1064-L1075>`_.
 
-    .. seealso:: how to :ref:`kill a process tree <recipe_kill_proc_tree>`.
+    .. seealso::
+      - :ref:`Kill process tree recipe <recipe_kill_proc_tree>`
 
   .. method:: page_faults()
 
@@ -2109,14 +2016,9 @@ Process class
     .. warning::
       - Windows: this is not guaranteed to enumerate all file handles (see
         :ref:`faq_open_files_windows`)
-      - BSD: can return empty-string paths due to a kernel bug (see
-        `issue 595 <https://github.com/giampaolo/psutil/pull/595>`_)
-
-    .. versionchanged:: 3.1.0
-       no longer hangs on Windows.
-
-    .. versionchanged:: 4.1.0
-       Linux: added :field:`position`, :field:`mode` and :field:`flags` fields.
+      - NetBSD, OpenBSD: :field:`path` is always an empty string. The kernel
+        doesn't expose it (there's no path field in ``struct kinfo_file``).
+      - FreeBSD: :field:`path` can be an empty string (:gh:`595`).
 
   .. method:: net_connections(kind="inet")
 
@@ -2171,10 +2073,8 @@ Process class
     ``CTRL_BREAK_EVENT`` signals are supported, and ``SIGTERM`` is treated as
     an alias for :meth:`kill`.
 
-    .. seealso:: how to :ref:`kill a process tree <recipe_kill_proc_tree>`
-
-    .. versionchanged:: 3.2.0
-       Windows: add support for CTRL_C_EVENT and CTRL_BREAK_EVENT signals.
+    .. seealso::
+      - :ref:`Kill process tree recipe <recipe_kill_proc_tree>`
 
   .. method:: suspend()
 
@@ -2197,7 +2097,8 @@ Process class
     ``os.kill(pid, signal.SIGTERM)``. On Windows this is an alias for
     :meth:`kill`.
 
-    .. seealso:: how to :ref:`kill a process tree <recipe_kill_proc_tree>`.
+    .. seealso::
+      - :ref:`Kill process tree recipe <recipe_kill_proc_tree>`
 
   .. method:: kill()
 
@@ -2206,7 +2107,8 @@ Process class
     ``os.kill(pid, signal.SIGKILL)``. On Windows this is done by using
     `TerminateProcess`_.
 
-    .. seealso:: how to :ref:`kill a process tree <recipe_kill_proc_tree>`.
+    .. seealso::
+      - :ref:`Kill process tree recipe <recipe_kill_proc_tree>`
 
   .. method:: wait(timeout=None)
 
@@ -2238,7 +2140,8 @@ Process class
        >>> p.wait()
        <NegSignal.SIGTERM: -15>
 
-    .. seealso:: :doc:`/blog/2026/event-driven-process-waiting`
+    .. seealso::
+      - :doc:`/blog/2026/event-driven-process-waiting`
 
     .. note::
 
@@ -2255,7 +2158,7 @@ Process class
       busy loop (non-blocking call and short sleeps).
 
       Functionality also ported to the :mod:`subprocess` module in Python 3.15,
-      see `GH-144047`_.
+      see :cpy-pr:`144047`.
 
     .. versionchanged:: 5.7.2
        if *timeout* is not ``None``, use efficient event-driven implementation
@@ -2286,7 +2189,7 @@ Popen class
   :meth:`send_signal() <psutil.Process.send_signal()>`,
   :meth:`terminate() <psutil.Process.terminate()>`,
   :meth:`kill() <psutil.Process.kill()>`. This is done to avoid killing another
-  process if its PID has been reused, fixing `BPO-6973`_.
+  process if its PID has been reused, fixing :bpo:`6973`.
 
   .. code-block:: pycon
 
@@ -2304,9 +2207,6 @@ Popen class
      0
      >>>
 
-  .. versionchanged:: 4.4.0
-     added context manager support.
-
 -------------------------------------------------------------------------------
 
 C heap introspection
@@ -2317,8 +2217,8 @@ The following functions provide direct access to the platform's native
 BSD). They are low-level interfaces intended for detecting memory leaks in C
 extensions, which are usually not revealed via standard :term:`RSS` /
 :term:`VMS` metrics. These functions do not reflect Python object memory; they
-operate solely on allocations made in C via ``malloc()``, ``free()``, and
-related calls.
+operate solely on allocations made in C via :manpage:`malloc(3)`,
+:manpage:`free(3)`, and related calls.
 
 The general idea behind these functions is straightforward: capture the state
 of the :term:`heap` before and after repeatedly invoking a function implemented
@@ -2329,7 +2229,7 @@ that Python's memory tracking misses.
 
 .. seealso::
 
-  :doc:`/blog/2025/heap-introspection-apis`
+  - :doc:`/blog/2025/heap-introspection-apis`
 
 .. tip::
 
@@ -2339,12 +2239,14 @@ that Python's memory tracking misses.
 .. function:: heap_info()
 
   Return low-level heap statistics from the system's C allocator. On Linux,
-  this exposes ``uordblks`` and ``hblkhd`` fields from glibc `mallinfo2`_.
+  this exposes ``uordblks`` and ``hblkhd`` fields from glibc
+  :manpage:`mallinfo2(3)`.
 
   - ``heap_used``: total number of bytes currently allocated via ``malloc()``
     (small allocations).
-  - ``mmap_used``: total number of bytes currently allocated via ``mmap()`` or
-    via large ``malloc()`` allocations. Always set to 0 on macOS.
+  - ``mmap_used``: total number of bytes currently allocated via
+    :manpage:`mmap(2)` or via large ``malloc()`` allocations. Always set to 0
+    on macOS.
   - ``heap_count``: (Windows only) number of private heaps created via
     ``HeapCreate()``.
 
@@ -2404,16 +2306,12 @@ Windows services
   Return an iterator yielding :class:`WindowsService` instances for all
   installed Windows services.
 
-  .. versionadded:: 4.2.0
-
   .. availability:: Windows
 
 .. function:: win_service_get(name)
 
   Get a Windows service by name, returning a :class:`WindowsService` instance.
   Raise :exc:`NoSuchProcess` if no service with such name exists.
-
-  .. versionadded:: 4.2.0
 
   .. availability:: Windows
 
@@ -2489,8 +2387,6 @@ Windows services
 
   .. availability:: Windows
 
-  .. versionadded:: 4.2.0
-
 -------------------------------------------------------------------------------
 
 Constants
@@ -2555,15 +2451,11 @@ via the enum class (e.g. prefer ``psutil.STATUS_RUNNING`` over
   :data:`NIC_DUPLEX_* <psutil.NIC_DUPLEX_FULL>` constants. Returned in the
   *duplex* field of :func:`psutil.net_if_stats`.
 
-  .. versionadded:: 3.0.0
-
 .. class:: BatteryTime
 
   :class:`enum.IntEnum` collection of
   :data:`POWER_TIME_* <psutil.POWER_TIME_UNKNOWN>` constants. May appear in the
   *secsleft* field of :func:`psutil.sensors_battery`.
-
-  .. versionadded:: 5.1.0
 
 .. _const-oses:
 
@@ -2654,34 +2546,24 @@ Represent the current status of a process. Returned by :meth:`Process.status`.
    These threads are "parked" when a CPU core is taken offline and will remain
    inactive until the core is re-enabled.
 
-   .. versionadded:: 5.4.7
-
 .. data:: STATUS_IDLE
 
    (Linux, macOS, FreeBSD) A sleep for kernel threads waiting for work.
-
-   .. versionadded:: 3.4.1
 
 .. data:: STATUS_LOCKED
 
    (FreeBSD only) The process is blocked specifically waiting for a
    kernel-level synchronization primitive (e.g. a mutex).
 
-   .. versionadded:: 3.4.1
-
 .. data:: STATUS_WAITING
 
    (FreeBSD only) The process is waiting in a kernel sleep queue for a specific
    system event to occur.
 
-   .. versionadded:: 3.4.1
-
 .. data:: STATUS_SUSPENDED
 
    (NetBSD only) The process has been explicitly paused, similar to the stopped
    state but managed by the NetBSD scheduler.
-
-   .. versionadded:: 3.4.1
 
 .. _const-proc-prio:
 
@@ -2717,7 +2599,7 @@ Process I/O priority constants
 Represent the I/O priority class of a process (Linux and Windows only). They
 can be used in conjunction with :meth:`Process.ionice` (*ioclass* argument).
 
-Linux (see `ioprio_get()`_ manual):
+- Linux (see :manpage:`ioprio_get(2)`):
 
   .. data:: IOPRIO_CLASS_RT
 
@@ -2735,14 +2617,12 @@ Linux (see `ioprio_get()`_ manual):
 
      No priority set (default; treated as :data:`IOPRIO_CLASS_BE`).
 
-Windows:
+- Windows:
 
   .. data:: IOPRIO_VERYLOW
   .. data:: IOPRIO_LOW
   .. data:: IOPRIO_NORMAL
   .. data:: IOPRIO_HIGH
-
-.. versionadded:: 5.6.2
 
 .. versionchanged:: 8.0.0
    constants are now :class:`ProcessIOPriority` enum members. See
@@ -2763,7 +2643,7 @@ explained in :func:`resource.getrlimit` documentation.
    these constants are now :class:`ProcessRlimit` enum members (were plain
    integers). See :ref:`migration guide <migration-8.0>`.
 
-Linux / FreeBSD:
+- Linux / FreeBSD:
 
   .. data:: RLIM_INFINITY
   .. data:: RLIMIT_AS
@@ -2777,7 +2657,7 @@ Linux / FreeBSD:
   .. data:: RLIMIT_RSS
   .. data:: RLIMIT_STACK
 
-Linux specific:
+- Linux specific:
 
   .. data:: RLIMIT_LOCKS
   .. data:: RLIMIT_MSGQUEUE
@@ -2786,7 +2666,7 @@ Linux specific:
   .. data:: RLIMIT_RTTIME
   .. data:: RLIMIT_SIGPENDING
 
-FreeBSD specific:
+- FreeBSD specific:
 
   .. data:: RLIMIT_SWAP
 
@@ -2840,8 +2720,6 @@ Hardware constants
   Identifies a MAC address associated with a network interface. Returned by
   :func:`psutil.net_if_addrs` (:field:`family` field).
 
-  .. versionadded:: 3.0.0
-
 .. _const-duplex:
 
 .. data:: NIC_DUPLEX_FULL
@@ -2852,8 +2730,6 @@ Hardware constants
   mode. FULL allows simultaneous send/receive, HALF allows only one at a time.
   Returned by :func:`psutil.net_if_stats` (:field:`duplex` field).
 
-  .. versionadded:: 3.0.0
-
 .. _const-power:
 
 .. data:: POWER_TIME_UNKNOWN
@@ -2861,8 +2737,6 @@ Hardware constants
 
   Whether the remaining time of a battery cannot be determined or is unlimited.
   May be assigned to :func:`psutil.sensors_battery`'s :field:`secsleft` field.
-
-  .. versionadded:: 5.1.0
 
 Other constants
 ^^^^^^^^^^^^^^^
@@ -2884,13 +2758,22 @@ Other constants
 
   .. availability:: Linux, SunOS, AIX
 
-  .. versionadded:: 3.2.3
+Utilities
+---------
 
-  .. versionchanged:: 3.4.2
-     also available on Solaris.
+.. function:: bytes2human(n)
 
-  .. versionchanged:: 5.4.0
-     also available on AIX.
+  Convert *n* bytes to a human-readable string.
+
+  .. code-block:: pycon
+
+     >>> import psutil
+     >>> psutil.bytes2human(10000)
+     '9.8K'
+     >>> psutil.bytes2human(100001221)
+     '95.4M'
+
+  .. versionadded:: 8.0.0
 
 .. _const-version-info:
 
@@ -2919,16 +2802,22 @@ Environment variables
 
      $ PSUTIL_DEBUG=1 python3 script.py
 
-  .. versionadded:: 5.4.2
+.. envvar:: PSUTIL_BUILD_JOBS
 
-.. _`ioprio_get()`: https://linux.die.net/man/2/ioprio_get
+  By default, psutil compiles its C source files in parallel, using one job per
+  CPU, which makes installing from source 2x to 3.6x faster. Set this variable
+  to change the number of jobs, or to 1 to compile serially.
+
+  .. code-block:: bash
+
+     $ PSUTIL_BUILD_JOBS=1 python3 -m pip install --no-binary=psutil psutil
+
+  .. versionadded:: 8.0.0
+
+.. ============================================================================
+
 .. _`iostats doc`: https://www.kernel.org/doc/Documentation/iostats.txt
-.. _`mallinfo2`: https://man7.org/linux/man-pages/man3/mallinfo.3.html
 .. _`psleak`: https://github.com/giampaolo/psleak
-.. _`/proc/meminfo`: https://man7.org/linux/man-pages/man5/proc_meminfo.5.html
-
-.. === Windows API
-
 .. _`GetExitCodeProcess`: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess
 .. _`GetPerformanceInfo`: https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getperformanceinfo
 .. _`PROCESS_MEMORY_COUNTERS_EX`: https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters_ex

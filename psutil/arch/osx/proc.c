@@ -11,10 +11,12 @@
 // https://github.com/giampaolo/psutil/blame/efd7ed3/psutil/arch/osx/process_info.c
 
 #include <Python.h>
+#include <AvailabilityMacros.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/sysctl.h>
 #include <libproc.h>
 #include <sys/proc_info.h>
@@ -264,46 +266,61 @@ psutil_in_shared_region(mach_vm_address_t addr, cpu_type_t type) {
 
 
 PyObject *
-psutil_proc_memory_info_ex(PyObject *self, PyObject *args) {
+psutil_proc_memory_extras(PyObject *self, PyObject *args) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+    // proc_pid_rusage() is weak-linked below 10.9: calling it would
+    // jump to NULL instead of failing.
+    PyErr_SetString(
+        PyExc_NotImplementedError, "proc_pid_rusage() requires macOS 10.9+"
+    );
+    return NULL;
+#else
     pid_t pid;
-    mach_port_t task = MACH_PORT_NULL;
-    kern_return_t kr;
-    task_vm_info_data_t info;
-    mach_msg_type_number_t info_count = TASK_VM_INFO_COUNT;
-    PyObject *dict = PyDict_New();
+    uint64_t phys_footprint = 0;
+    uint64_t peak_footprint = 0;
+    int fetched = 0;
+    struct rusage_info_v0 ri0;
+#ifdef RUSAGE_INFO_V4
+    struct rusage_info_v4 ri4;
+#endif
+    PyObject *dict = NULL;
 
-    if (!dict)
-        return NULL;
     if (!PyArg_ParseTuple(args, _Py_PARSE_PID, &pid))
-        goto error;
-    if (psutil_task_for_pid(pid, &task) != 0)
-        goto error;
+        return NULL;
 
-    // Fetch multiple metrics. Fails with access denied for any PID not
-    // owned by us.
-    kr = task_info(task, TASK_VM_INFO, (task_info_t)&info, &info_count);
-    mach_port_deallocate(mach_task_self(), task);
-    task = MACH_PORT_NULL;
-    if (kr != KERN_SUCCESS) {
-        psutil_runtime_error("task_info(TASK_VM_INFO) syscall failed");
-        goto error;
+#ifdef RUSAGE_INFO_V4
+    // ri_lifetime_max_phys_footprint requires RUSAGE_INFO_V4 (macOS
+    // 10.13). Before that only phys_footprint is available and
+    // peak_footprint stays 0.
+    if (proc_pid_rusage(pid, RUSAGE_INFO_V4, (rusage_info_t *)&ri4) == 0) {
+        phys_footprint = ri4.ri_phys_footprint;
+        peak_footprint = ri4.ri_lifetime_max_phys_footprint;
+        fetched = 1;
+    }
+    else if (errno != EINVAL) {
+        psutil_raise_for_pid(pid, "proc_pid_rusage()");
+        return NULL;
+    }
+    else {
+        psutil_debug("proc_pid_rusage(V4) -> EINVAL; falling back to V0");
+    }
+#endif
+
+    if (!fetched) {
+        if (proc_pid_rusage(pid, RUSAGE_INFO_V0, (rusage_info_t *)&ri0) != 0) {
+            psutil_raise_for_pid(pid, "proc_pid_rusage()");
+            return NULL;
+        }
+        phys_footprint = ri0.ri_phys_footprint;
     }
 
-    // Fetch wired memory.
-    uint64_t wired_size = 0;
-    struct rusage_info_v0 ri;
-    if (proc_pid_rusage(pid, RUSAGE_INFO_V0, (rusage_info_t *)&ri) == 0)
-        wired_size = ri.ri_wired_size;
-    else
-        psutil_debug("proc_pid_rusage() failed (pid=%i)", pid);
+    dict = PyDict_New();
+    if (!dict)
+        return NULL;
 
     // clang-format off
-    if (!pydict_add(dict, "peak_rss", "K", (unsigned long long)info.resident_size_peak)) goto error;
-    if (!pydict_add(dict, "rss_anon", "K", (unsigned long long)info.internal)) goto error;
-    if (!pydict_add(dict, "rss_file", "K", (unsigned long long)info.external)) goto error;
-    if (!pydict_add(dict, "wired", "K", (unsigned long long)wired_size)) goto error;
-    if (!pydict_add(dict, "compressed", "K", (unsigned long long)info.compressed)) goto error;
-    if (!pydict_add(dict, "phys_footprint", "K", (unsigned long long)info.phys_footprint)) goto error;
+    if (!pydict_add(dict, "phys_footprint", "K", (unsigned long long)phys_footprint)) goto error;
+    if (!pydict_add(dict, "peak_footprint", "K", (unsigned long long)peak_footprint)) goto error;
     // clang-format on
 
     return dict;
@@ -311,222 +328,305 @@ psutil_proc_memory_info_ex(PyObject *self, PyObject *args) {
 error:
     Py_DECREF(dict);
     return NULL;
+#endif
 }
 
 
-// Return process USS (unique set size) memory. Reference:
+// One-shot version of the VM object hash libtop uses for its RSHRD
+// accounting (see libtop_p_oinfo_insert):
+// https://github.com/apple-oss-distributions/top/blob/main/libtop.c
+typedef struct {
+    uint32_t obj_id;
+    uint32_t ref_count;
+    uint32_t proc_refs;
+    uint32_t resident;
+    unsigned char used;
+    unsigned char is_sm_shared;
+} psutil_oinfo_slot;
+
+
+static int
+psutil_oinfo_add(
+    psutil_oinfo_slot **tab,
+    size_t *cap,
+    size_t *len,
+    uint32_t obj_id,
+    int is_sm_shared,
+    uint32_t ref_count,
+    uint32_t resident,
+    const psutil_oinfo_slot *stack_tab
+) {
+    size_t i;
+    psutil_oinfo_slot *slot;
+
+    if (*len * 10 >= *cap * 7) {
+        size_t old_cap = *cap;
+        psutil_oinfo_slot *old_tab = *tab;
+        psutil_oinfo_slot *new_tab;
+
+        new_tab = calloc(old_cap * 2, sizeof(psutil_oinfo_slot));
+        if (new_tab == NULL)
+            return -1;
+        *tab = new_tab;
+        *cap = old_cap * 2;
+        for (i = 0; i < old_cap; i++) {
+            if (old_tab[i].used) {
+                size_t j = old_tab[i].obj_id % *cap;
+                while (new_tab[j].used)
+                    j = (j + 1) % *cap;
+                new_tab[j] = old_tab[i];
+            }
+        }
+        if (old_tab != stack_tab)
+            free(old_tab);
+    }
+
+    i = obj_id % *cap;
+    while ((*tab)[i].used && (*tab)[i].obj_id != obj_id)
+        i = (i + 1) % *cap;
+    slot = &(*tab)[i];
+    if (slot->used) {
+        slot->proc_refs += 1;
+    }
+    else {
+        slot->used = 1;
+        slot->obj_id = obj_id;
+        slot->is_sm_shared = (unsigned char)is_sm_shared;
+        slot->ref_count = ref_count;
+        slot->proc_refs = 1;
+        slot->resident = resident;
+        *len += 1;
+    }
+    return 0;
+}
+
+
+// Return process USS (unique set size) and shared memory. USS is
+// roughly based on Mozilla's:
 // https://dxr.mozilla.org/mozilla-central/source/xpcom/base/nsMemoryReporterManager.cpp
+// Shared memory follows the RSHRD accounting of libtop:
+// https://github.com/apple-oss-distributions/top/blob/main/libtop.c
 PyObject *
-psutil_proc_memory_uss(PyObject *self, PyObject *args) {
+psutil_proc_memory_footprint(PyObject *self, PyObject *args) {
     pid_t pid;
     cpu_type_t cpu_type;
     size_t private_pages = 0;
-    mach_vm_size_t size = 0;
-    mach_msg_type_number_t info_count;
-    kern_return_t kr;
+    size_t shared_pages = 0;
     long pagesize = psutil_getpagesize();
-    mach_vm_address_t addr;
-    mach_port_t task = MACH_PORT_NULL;
-    vm_region_top_info_data_t info;
-    mach_port_t object_name;
-    mach_vm_address_t prev_addr;
+    uint64_t addr = 0;
+    uint64_t next_addr;
+    int ret;
+    int nregions = 0;
+    int no_mem = 0;
+    char *errmsg = NULL;
+    struct proc_regioninfo ri;
+    psutil_oinfo_slot stack_oinfo[1024];
+    psutil_oinfo_slot *oinfo = stack_oinfo;
+    size_t oinfo_cap = 1024;
+    size_t oinfo_len = 0;
+    size_t i;
+
+    memset(stack_oinfo, 0, sizeof(stack_oinfo));
 
     if (!PyArg_ParseTuple(args, _Py_PARSE_PID, &pid))
-        return NULL;
-
-    if (psutil_task_for_pid(pid, &task) != 0)
         return NULL;
 
     if (psutil_sysctlbyname("sysctl.proc_cputype", &cpu_type, sizeof(cpu_type))
         != 0)
     {
-        mach_port_deallocate(mach_task_self(), task);
         return NULL;
     }
 
-    // Roughly based on libtop_update_vm_regions in
-    // http://www.opensource.apple.com/source/top/top-100.1.2/libtop.c
-    for (addr = MACH_VM_MIN_ADDRESS;; addr += size) {
-        prev_addr = addr;
-        info_count = VM_REGION_TOP_INFO_COUNT;  // reset before each call
-        object_name = MACH_PORT_NULL;
+    // Sum up process private (unique) resident pages by walking its VM
+    // regions, and collect shared objects (deduplicated by object id,
+    // like libtop does) for the shared count.
+    // The walk can take a long time (or hang) on a process we don't own,
+    // see https://github.com/giampaolo/psutil/issues/2885, so run it
+    // without the GIL. Exceptions are raised further below.
+    Py_BEGIN_ALLOW_THREADS
+    while (1) {
+        errno = 0;
+        ret = proc_pidinfo(pid, PROC_PIDREGIONINFO, addr, &ri, sizeof(ri));
 
-        kr = mach_vm_region(
-            task,
-            &addr,
-            &size,
-            VM_REGION_TOP_INFO,
-            (vm_region_info_t)&info,
-            &info_count,
-            &object_name
-        );
-
-        if (object_name != MACH_PORT_NULL) {
-            mach_port_deallocate(mach_task_self(), object_name);
-            object_name = MACH_PORT_NULL;
-        }
-
-        if (kr == KERN_INVALID_ADDRESS) {
-            // Done iterating VM regions.
+        if (ret <= 0) {
+            // A failure on the first region means the process is gone or
+            // not accessible; past that it just means we reached the end
+            // of the address space.
+            if (nregions == 0)
+                errmsg = "proc_pidinfo(PROC_PIDREGIONINFO)";
             break;
         }
-        else if (kr != KERN_SUCCESS) {
-            psutil_runtime_error(
-                "mach_vm_region(VM_REGION_TOP_INFO) syscall failed"
-            );
-            mach_port_deallocate(mach_task_self(), task);
-            return NULL;
-        }
-
-        if (size == 0 || addr < prev_addr) {
-            psutil_debug("prevent infinite loop");
+        if (ret != sizeof(ri)) {
+            errmsg = "proc_pidinfo(PROC_PIDREGIONINFO) truncated";
             break;
         }
+        nregions += 1;
 
-        if (psutil_in_shared_region(addr, cpu_type)
-            && info.share_mode != SM_PRIVATE)
+        if (!(psutil_in_shared_region(ri.pri_address, cpu_type)
+              && ri.pri_share_mode != SM_PRIVATE))
         {
-            continue;
-        }
-
-        switch (info.share_mode) {
+            switch (ri.pri_share_mode) {
 #ifdef SM_LARGE_PAGE
-            case SM_LARGE_PAGE:
-                // NB: Large pages are not shareable and always resident.
+                case SM_LARGE_PAGE:
+                    // NB: Large pages are not shareable and always resident.
 #endif
-            case SM_PRIVATE:
-                private_pages += info.private_pages_resident;
-                private_pages += info.shared_pages_resident;
-                break;
-            case SM_COW:
-                private_pages += info.private_pages_resident;
-                if (info.ref_count == 1) {
-                    // Treat copy-on-write pages as private if they only
-                    // have one reference.
-                    private_pages += info.shared_pages_resident;
-                }
-                break;
-            case SM_SHARED:
-            default:
-                break;
+                case SM_PRIVATE:
+                    private_pages += ri.pri_private_pages_resident;
+                    private_pages += ri.pri_shared_pages_resident;
+                    break;
+                case SM_COW:
+                    private_pages += ri.pri_private_pages_resident;
+                    if (ri.pri_ref_count == 1) {
+                        // Treat copy-on-write pages as private if they
+                        // only have one reference.
+                        private_pages += ri.pri_shared_pages_resident;
+                    }
+                    else if (psutil_oinfo_add(
+                                 &oinfo,
+                                 &oinfo_cap,
+                                 &oinfo_len,
+                                 ri.pri_obj_id,
+                                 0,
+                                 ri.pri_ref_count,
+                                 ri.pri_shared_pages_resident,
+                                 stack_oinfo
+                             )
+                             != 0)
+                    {
+                        no_mem = 1;
+                    }
+                    break;
+                case SM_SHARED:
+                    if (psutil_oinfo_add(
+                            &oinfo,
+                            &oinfo_cap,
+                            &oinfo_len,
+                            ri.pri_obj_id,
+                            1,
+                            ri.pri_ref_count,
+                            ri.pri_shared_pages_resident,
+                            stack_oinfo
+                        )
+                        != 0)
+                    {
+                        no_mem = 1;
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
+        if (no_mem)
+            break;
+
+        next_addr = ri.pri_address + ri.pri_size;
+        if (ri.pri_size == 0 || next_addr <= addr) {
+            psutil_warn("VM region walk not advancing; stopped early");
+            break;
+        }
+        addr = next_addr;
     }
 
-    mach_port_deallocate(mach_task_self(), task);
-    return Py_BuildValue("K", private_pages * pagesize);
+    for (i = 0; i < oinfo_cap; i++) {
+        if (oinfo[i].used) {
+            // A shared object whose references all come from this
+            // process is private in disguise ("aliased" in libtop
+            // terms); leave it out.
+            if (oinfo[i].is_sm_shared
+                && oinfo[i].ref_count == oinfo[i].proc_refs)
+            {
+                continue;
+            }
+            shared_pages += oinfo[i].resident;
+        }
+    }
+    Py_END_ALLOW_THREADS
+
+    if (oinfo != stack_oinfo)
+        free(oinfo);
+    if (no_mem)
+        return PyErr_NoMemory();
+    if (errmsg != NULL)
+        return psutil_raise_for_pid(pid, errmsg);
+
+    return Py_BuildValue(
+        "{s:K, s:K}",
+        "uss",
+        (unsigned long long)private_pages * pagesize,
+        "shared",
+        (unsigned long long)shared_pages * pagesize
+    );
 }
 
 
 PyObject *
 psutil_proc_threads(PyObject *self, PyObject *args) {
     pid_t pid;
-    kern_return_t kr;
-    mach_port_t task = MACH_PORT_NULL;
-    struct task_basic_info tasks_info;
-    thread_act_port_array_t thread_list = NULL;
-    thread_info_data_t thinfo_basic;
-    thread_basic_info_t basic_info_th;
-    mach_msg_type_number_t thread_count, thread_info_count, j;
-
+    int ret;
+    int buf_size;
+    int num_threads;
+    int i;
+    uint64_t *tids = NULL;
+    struct proc_taskinfo pti;
+    struct proc_threadinfo ti;
     PyObject *py_retlist = PyList_New(0);
 
     if (py_retlist == NULL)
         return NULL;
-
     if (!PyArg_ParseTuple(args, _Py_PARSE_PID, &pid))
         goto error;
 
-    if (psutil_task_for_pid(pid, &task) != 0)
+    // Get size.
+    if (psutil_proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &pti, sizeof(pti)) != 0)
         goto error;
-
-    // Get basic task info (optional, ignored if access denied)
-    mach_msg_type_number_t info_count = TASK_BASIC_INFO_COUNT;
-    kr = task_info(
-        task, TASK_BASIC_INFO, (task_info_t)&tasks_info, &info_count
-    );
-    if (kr != KERN_SUCCESS) {
-        if (kr == KERN_INVALID_ARGUMENT) {
-            psutil_oserror_ad("task_info(TASK_BASIC_INFO)");
-        }
-        else {
-            // otherwise throw a runtime error with appropriate error code
-            psutil_runtime_error("task_info(TASK_BASIC_INFO) syscall failed");
-        }
+    buf_size = (int)((pti.pti_threadnum + 32) * sizeof(uint64_t));
+    tids = malloc(buf_size);
+    if (tids == NULL) {
+        PyErr_NoMemory();
         goto error;
     }
 
-    kr = task_threads(task, &thread_list, &thread_count);
-    if (kr != KERN_SUCCESS) {
-        psutil_runtime_error("task_threads() syscall failed");
+    errno = 0;
+    ret = proc_pidinfo(pid, PROC_PIDLISTTHREADS, 0, tids, buf_size);
+    if (ret <= 0) {
+        psutil_raise_for_pid(pid, "proc_pidinfo(PROC_PIDLISTTHREADS)");
         goto error;
     }
+    num_threads = ret / (int)sizeof(uint64_t);
 
-    for (j = 0; j < thread_count; j++) {
-        thread_info_count = THREAD_INFO_MAX;
-        kr = thread_info(
-            thread_list[j],
-            THREAD_BASIC_INFO,
-            (thread_info_t)thinfo_basic,
-            &thread_info_count
-        );
-        if (kr != KERN_SUCCESS) {
-            psutil_runtime_error(
-                "thread_info(THREAD_BASIC_INFO) syscall failed"
-            );
-            goto error;
+    for (i = 0; i < num_threads; i++) {
+        if (psutil_proc_pidinfo(
+                pid, PROC_PIDTHREADINFO, tids[i], &ti, sizeof(ti)
+            )
+            != 0)
+        {
+            // Thread vanished between listing and query; skip it.
+            PyErr_Clear();
+            psutil_debug("PROC_PIDTHREADINFO failed; thread gone");
+            continue;
         }
 
-        basic_info_th = (thread_basic_info_t)thinfo_basic;
+        // Unlike PROC_PIDTASKINFO's Mach-tick totals, pth_user_time and
+        // pth_system_time are already in nanoseconds.
         if (!pylist_append_fmt(
                 py_retlist,
-                "Iff",
-                j + 1,
-                basic_info_th->user_time.seconds
-                    + (float)basic_info_th->user_time.microseconds / 1000000.0,
-                basic_info_th->system_time.seconds
-                    + (float)basic_info_th->system_time.microseconds
-                          / 1000000.0
+                "Kdd",
+                (unsigned long long)tids[i],
+                (double)ti.pth_user_time / 1000000000.0,
+                (double)ti.pth_system_time / 1000000000.0
             ))
         {
             goto error;
         }
     }
 
-    // deallocate thread_list if it was allocated
-    if (thread_list != NULL) {
-        vm_deallocate(
-            mach_task_self(),
-            (vm_address_t)thread_list,
-            thread_count * sizeof(thread_act_t)
-        );
-        thread_list = NULL;
-    }
-
-    // deallocate the task port
-    if (task != MACH_PORT_NULL) {
-        mach_port_deallocate(mach_task_self(), task);
-        task = MACH_PORT_NULL;
-    }
-
+    free(tids);
     return py_retlist;
 
 error:
+    if (tids != NULL)
+        free(tids);
     Py_XDECREF(py_retlist);
-
-    if (thread_list != NULL) {
-        vm_deallocate(
-            mach_task_self(),
-            (vm_address_t)thread_list,
-            thread_count * sizeof(thread_act_t)
-        );
-        thread_list = NULL;
-    }
-
-    if (task != MACH_PORT_NULL) {
-        mach_port_deallocate(mach_task_self(), task);
-        task = MACH_PORT_NULL;
-    }
-
     return NULL;
 }
 
@@ -626,6 +726,7 @@ psutil_proc_net_connections(PyObject *self, PyObject *args) {
     pid_t pid;
     int num_fds;
     int i;
+    psutil_conn_filters filters;
     unsigned long nb;
     struct proc_fdinfo *fds_pointer = NULL;
     struct proc_fdinfo *fdp_pointer;
@@ -651,10 +752,8 @@ psutil_proc_net_connections(PyObject *self, PyObject *args) {
     if (pid == 0)
         return py_retlist;
 
-    if (!PySequence_Check(py_af_filter) || !PySequence_Check(py_type_filter)) {
-        PyErr_SetString(PyExc_TypeError, "arg 2 or 3 is not a sequence");
+    if (psutil_parse_conn_filters(py_af_filter, py_type_filter, &filters) != 0)
         goto error;
-    }
 
     fds_pointer = psutil_proc_list_fds(pid, &num_fds);
     if (fds_pointer == NULL)
@@ -705,30 +804,23 @@ psutil_proc_net_connections(PyObject *self, PyObject *args) {
             //
             int fd, family, type, lport, rport, state;
             char lip[INET6_ADDRSTRLEN], rip[INET6_ADDRSTRLEN];
-            int inseq;
-            PyObject *py_family;
-            PyObject *py_type;
 
             fd = (int)fdp_pointer->proc_fd;
             family = si.psi.soi_family;
             type = si.psi.soi_type;
 
             // apply filters
-            py_family = PyLong_FromLong((long)family);
-            inseq = PySequence_Contains(py_af_filter, py_family);
-            Py_DECREF(py_family);
-            if (inseq == -1)
-                goto error;
-            if (inseq == 0)
+            if (!((family == AF_INET && filters.v4)
+                  || (family == AF_INET6 && filters.v6)
+                  || (family == AF_UNIX && filters.unix_)))
+            {
                 continue;
-
-            py_type = PyLong_FromLong((long)type);
-            inseq = PySequence_Contains(py_type_filter, py_type);
-            Py_DECREF(py_type);
-            if (inseq == -1)
-                goto error;
-            if (inseq == 0)
+            }
+            if (!((type == SOCK_STREAM && filters.tcp)
+                  || (type == SOCK_DGRAM && filters.udp)))
+            {
                 continue;
+            }
 
             if ((family == AF_INET) || (family == AF_INET6)) {
                 if (family == AF_INET) {
