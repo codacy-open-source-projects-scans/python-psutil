@@ -16,7 +16,6 @@ import signal
 import socket
 import sys
 import time
-import warnings
 from unittest import mock
 
 import psutil
@@ -97,10 +96,10 @@ class TestProcessIter(PsutilTestCase):
 
     def test_attrs(self):
         for p in psutil.process_iter(attrs=['pid']):
-            assert list(p._prefetch.keys()) == ['pid']
+            assert list(p.snapshot.as_dict()) == ['pid']
         # yield again
         for p in psutil.process_iter(attrs=['pid']):
-            assert list(p._prefetch.keys()) == ['pid']
+            assert list(p.snapshot.as_dict()) == ['pid']
         with pytest.raises(ValueError):
             list(psutil.process_iter(attrs=['foo']))
         with mock.patch(
@@ -108,8 +107,8 @@ class TestProcessIter(PsutilTestCase):
             side_effect=psutil.AccessDenied(0, ""),
         ) as m:
             for p in psutil.process_iter(attrs=["pid", "cpu_times"]):
-                assert p._prefetch['cpu_times'] is None
-                assert p._prefetch['pid'] >= 0
+                assert p.snapshot.cpu_times is None
+                assert p.snapshot.pid >= 0
             assert m.called
         with mock.patch(
             "psutil._psplatform.Process.cpu_times",
@@ -119,115 +118,39 @@ class TestProcessIter(PsutilTestCase):
             for p in psutil.process_iter(
                 attrs=["pid", "cpu_times"], ad_value=flag
             ):
-                assert p._prefetch['cpu_times'] is flag
-                assert p._prefetch['pid'] >= 0
+                assert p.snapshot.cpu_times is flag
+                assert p.snapshot.pid >= 0
             assert m.called
-
-    def test_prefetch(self):
-        for p in psutil.process_iter(attrs=["name", "status"]):
-            assert p.name() == p._prefetch["name"]
-            assert p.status() == p._prefetch["status"]
-
-    def test_prefetch_memory_percent(self):
-        # It used to skip its own cached value, run the body, and
-        # crash on memory_info()'s ad_value.
-        with mock.patch(
-            "psutil._psplatform.Process.memory_info",
-            side_effect=psutil.AccessDenied(0, ""),
-        ):
-            for p in psutil.process_iter(attrs=["memory_percent"]):
-                assert p.memory_percent() is None
-
-    def test_prefetch_derived_methods(self):
-        # The derived method is not in attrs, so its body runs and
-        # reads the denied one's ad_value.
-        with mock.patch(
-            "psutil._psplatform.Process.memory_info",
-            side_effect=psutil.AccessDenied(0, ""),
-        ):
-            for p in psutil.process_iter(attrs=["memory_info"]):
-                assert p.memory_percent() is None
-
-    @skipif(not POSIX, reason="POSIX only")
-    def test_prefetch_derived_username(self):
-        # username() derives from uids(), which is POSIX only.
-        with mock.patch(
-            "psutil._psplatform.Process.uids",
-            side_effect=psutil.AccessDenied(0, ""),
-        ):
-            for p in psutil.process_iter(attrs=["uids"]):
-                assert p.username() is None
-
-    def test_prefetch_ad_value_is_not_none(self):
-        # ad_value can be any object, not just None.
-        flag = object()
-        with mock.patch(
-            "psutil._psplatform.Process.memory_info",
-            side_effect=psutil.AccessDenied(0, ""),
-        ):
-            for p in psutil.process_iter(attrs=["memory_info"], ad_value=flag):
-                assert p.memory_percent() is flag
-
-    def test_info_deprecation(self):
-        for p in psutil.process_iter(attrs=["name"]):
-            with warnings.catch_warnings(record=True) as ws:
-                warnings.simplefilter("always")
-                p.info  # noqa: B018
-                assert len(ws) == 1
-                assert issubclass(ws[0].category, DeprecationWarning)
-                assert "deprecated" in str(ws[0].message)
-            break
-
-    def test_prefetch_ad_value(self):
-        with mock.patch(
-            "psutil._psplatform.Process.cpu_times",
-            side_effect=psutil.AccessDenied(0, ""),
-        ):
-            for p in psutil.process_iter(attrs=["cpu_times"]):
-                assert p.cpu_times() is None
-
-    def test_prefetch_cleared(self):
-        # Prefetch cache is cleared when attrs is not specified.
-        for p in psutil.process_iter(attrs=["name"]):
-            assert p._prefetch
-        for p in psutil.process_iter():
-            assert not p._prefetch
-
-    def test_prefetch_with_args_bypasses_cache(self):
-        # Methods called with args should bypass the prefetch cache
-        # (e.g. nice(10) is a setter, not a getter).
-        p = psutil.Process()
-        p._prefetch["nice"] = -999
-        # Without args: returns cached value.
-        assert p.nice() == -999
-        # With args: bypasses cache, calls real method.
-        real_nice = psutil.Process().nice()
-        assert p.nice(real_nice) is None
-        assert p.nice() == -999
-
-    def test_prefetch_double_call(self):
-        # Multiple calls should return the same cached value.
-        for p in psutil.process_iter(attrs=["name"]):
-            name1 = p.name()
-            name2 = p.name()
-            assert name1 == name2
-            assert name1 == p._prefetch["name"]
-            break
 
     def test_deprecated_prefetch_empty_attrs(self):
         # attrs=[] should prefetch all methods.
         with pytest.warns(DeprecationWarning):
             for p in psutil.process_iter(attrs=[]):
                 break
-        assert p._prefetch.keys() == psutil.Process.attrs
+        assert p.snapshot.as_dict().keys() == psutil.Process.attrs
 
-    def test_prefetch_with_non_prefetched(self):
-        # A method not in attrs should still do a live syscall.
-        for p in psutil.process_iter(attrs=["name"]):
-            assert "status" not in p._prefetch
-            # status() should still work via syscall
-            assert p.status()
-            break
+    def test_deprecated_info(self):
+        p = psutil.Process()
+        with pytest.warns(DeprecationWarning, match="snapshot"):
+            assert p.info == {}
+        p = next(psutil.process_iter(attrs=["pid", "name"]))
+        with pytest.warns(DeprecationWarning, match="snapshot"):
+            assert p.info == p.snapshot.as_dict()
+        p = psutil.Process()
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            p.info = {"pid": 1, "name": "foo"}
+        with pytest.warns(DeprecationWarning, match="snapshot"):
+            assert p.info == {"pid": 1, "name": "foo"}
+        # legacy writes must not touch the snapshot
+        assert p.snapshot.as_dict() == {}
+        # ...and any scan resets it, even one without attrs
+        pid = os.getpid()
+        p = next(x for x in psutil.process_iter() if x.pid == pid)
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            p.info = {"name": "foo"}
+        list(psutil.process_iter())
+        with pytest.warns(DeprecationWarning, match="snapshot"):
+            assert p.info == {}
 
     def test_zombie_process_is_not_skipped(self):
         # ZombieProcess is a subclass of NoSuchProcess; make sure
@@ -246,6 +169,87 @@ class TestProcessIter(PsutilTestCase):
         assert psutil._pmap
         psutil.process_iter.cache_clear()
         assert not psutil._pmap
+
+
+class TestProcessSnapshot(PsutilTestCase):
+    def test_base(self):
+        for p in psutil.process_iter(attrs=["pid", "name"]):
+            assert p.snapshot.pid == p.pid
+            if p.pid == os.getpid():
+                assert p.snapshot.name == p.name()
+            with pytest.raises(AttributeError, match="not requested"):
+                p.snapshot.exe  # noqa: B018
+            with pytest.raises(AttributeError, match="not a valid"):
+                p.snapshot.foo  # noqa: B018
+            with pytest.raises(AttributeError):
+                p.snapshot.name = "foo"
+            with pytest.raises(AttributeError):
+                del p.snapshot.name
+        assert "snapshot" not in psutil.Process.attrs
+        assert psutil.Process().snapshot.as_dict() == {}
+        with pytest.raises(AttributeError, match="not requested"):
+            psutil.Process().snapshot.name  # noqa: B018
+
+    def test_no_attrs(self):
+        # If no attrs are specificied, snapshot should be empty
+        pid = os.getpid()
+        p = next(
+            x for x in psutil.process_iter(attrs=["name"]) if x.pid == pid
+        )
+        assert p.snapshot.as_dict() != {}
+        p = next(x for x in psutil.process_iter() if x.pid == pid)
+        assert p.snapshot.as_dict() == {}
+
+    def test_refresh(self):
+        # A new scan replaces the snapshot object instead of updating it
+        pid = os.getpid()
+        p = next(
+            x for x in psutil.process_iter(attrs=["name"]) if x.pid == pid
+        )
+        old = p.snapshot
+        p = next(
+            x for x in psutil.process_iter(attrs=["name"]) if x.pid == pid
+        )
+        assert p.snapshot is not old
+
+    def test_eq(self):
+        # compared by value, but only against other snapshots
+        a = psutil.ProcessSnapshot({"pid": 1, "name": "foo"})
+        b = psutil.ProcessSnapshot({"pid": 1, "name": "foo"})
+        assert a == b
+        assert a != psutil.ProcessSnapshot({"pid": 2, "name": "foo"})
+        assert a != {"pid": 1, "name": "foo"}
+        # as_dict() hands out a fresh copy every time
+        assert a.as_dict() == {"pid": 1, "name": "foo"}
+        assert a.as_dict() is not a.as_dict()
+        # the constructor copies too, so the source dict is detached
+        d = {"pid": 1, "name": "foo"}
+        a = psutil.ProcessSnapshot(d)
+        d["name"] = "bar"
+        assert a.name == "foo"
+        # unhashable: values may be lists or dicts
+        with pytest.raises(TypeError):
+            hash(a)
+
+    def test_bool(self):
+        assert not psutil.ProcessSnapshot({})
+        assert psutil.ProcessSnapshot({"pid": 1})
+        assert not psutil.Process().snapshot
+
+    def test_annotations(self):
+        hints = psutil.ProcessSnapshot.__annotations__
+        assert psutil.Process.attrs <= set(hints)
+
+        # Each annotation must match the annotation of the
+        # corresponding Process method.
+        for name in psutil.Process.attrs:
+            fun = getattr(psutil.Process, name)
+            fun = getattr(fun, "fget", fun)  # pid is a property
+            expected = fun.__annotations__["return"]
+            if name in {"nice", "ionice", "cpu_affinity"}:
+                # getter/setter: None is returned only when setting
+                expected = expected.replace(" | None", "")
+            assert hints[name] == expected
 
 
 class TestProcessAPIs(PsutilTestCase):

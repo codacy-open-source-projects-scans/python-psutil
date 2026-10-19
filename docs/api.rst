@@ -145,7 +145,7 @@ CPU
   Similar to :func:`cpu_percent`, but provides utilization percentages for each
   specific CPU time. *interval* and *percpu* arguments have the same meaning as
   in :func:`cpu_percent`. On Linux, :field:`guest` and :field:`guest_nice`
-  percentages are not accounted in :field:`user` and :field:`user_nice`.
+  percentages are not accounted in :field:`user` and :field:`nice`.
 
   .. seealso::
     - :ref:`faq_cpu_percent`
@@ -502,7 +502,7 @@ Disks
 
   Return disk usage statistics for the partition containing *path*. Values are
   expressed in bytes and include :field:`total`, :field:`used` and
-  :field:`free` space, plus the :field:`percentage` usage. On UNIX, *path* must
+  :field:`free` space, plus the :field:`percent` usage. On UNIX, *path* must
   point to a path within a **mounted** filesystem partition. This function was
   later incorporated in Python 3.3 as :func:`shutil.disk_usage` (see
   :bpo:`12442`).
@@ -682,10 +682,10 @@ Network
 
      >>> import psutil
      >>> psutil.net_connections()
-     [pconn(fd=115, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=48776), raddr=addr(ip='93.186.135.91', port=80), status=<ConnectionStatus.CONN_ESTABLISHED: 'ESTABLISHED'>, pid=1254),
-      pconn(fd=117, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=43761), raddr=addr(ip='72.14.234.100', port=80), status=<ConnectionStatus.CONN_CLOSING: 'CLOSING'>, pid=2987),
-      pconn(fd=-1, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=60759), raddr=addr(ip='72.14.234.104', port=80), status=<ConnectionStatus.CONN_ESTABLISHED: 'ESTABLISHED'>, pid=None),
-      pconn(fd=-1, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status=<ConnectionStatus.CONN_SYN_SENT: 'SYN_SENT'>, pid=None)
+     [sconn(fd=115, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=48776), raddr=addr(ip='93.186.135.91', port=80), status=<ConnectionStatus.CONN_ESTABLISHED: 'ESTABLISHED'>, pid=1254),
+      sconn(fd=117, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=43761), raddr=addr(ip='72.14.234.100', port=80), status=<ConnectionStatus.CONN_CLOSING: 'CLOSING'>, pid=2987),
+      sconn(fd=-1, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=60759), raddr=addr(ip='72.14.234.104', port=80), status=<ConnectionStatus.CONN_ESTABLISHED: 'ESTABLISHED'>, pid=None),
+      sconn(fd=-1, family=<AddressFamily.AF_INET: 2>, type=<SocketType.SOCK_STREAM: 1>, laddr=addr(ip='10.0.0.1', port=51314), raddr=addr(ip='72.14.234.83', port=443), status=<ConnectionStatus.CONN_SYN_SENT: 'SYN_SENT'>, pid=None)
       ...]
 
   .. warning::
@@ -725,7 +725,8 @@ Network
     unconfigured NIC), or :data:`AF_LINK` (a MAC address).
   - :field:`address`: the primary NIC address.
   - :field:`netmask`: the netmask address.
-  - :field:`broadcast`: the broadcast address; always ``None`` on Windows.
+  - :field:`broadcast`: the broadcast address; on Windows it is calculated from
+    the netmask.
   - :field:`ptp`: a "point to point" address (typically a VPN); always ``None``
     on Windows.
 
@@ -951,13 +952,10 @@ Functions
 
   *attrs* and *ad_value* have the same meaning as in :meth:`Process.as_dict`.
 
-  If *attrs* is specified, :meth:`Process.as_dict` is called internally, and
-  the results are cached so that subsequent method calls (e.g. ``p.name()``,
-  ``p.status()``) return the cached values instead of issuing new system calls.
-  See :attr:`Process.attrs` for a list of valid *attrs* names.
-
-  If a method raises :exc:`AccessDenied` during pre-fetch, it will return
-  *ad_value* (default ``None``) instead of raising.
+  If *attrs* is specified, the collected values are exposed as a
+  :class:`ProcessSnapshot` via the :attr:`Process.snapshot` attribute of the
+  returned :class:`Process` instances. See :attr:`Process.attrs` for a list of
+  valid *attrs* names.
 
   Processes are returned sorted by PID.
 
@@ -965,7 +963,7 @@ Functions
 
      >>> import psutil
      >>> for proc in psutil.process_iter(['pid', 'name', 'username']):
-     ...     print(proc.pid, proc.name(), proc.username())  # return cached values, never raise
+     ...     print(proc.snapshot.pid, proc.snapshot.name, proc.snapshot.username)
      ...
      1 systemd root
      2 kthreadd root
@@ -985,12 +983,6 @@ Functions
 
      >>> psutil.process_iter.cache_clear()
 
-  .. note::
-
-    since :class:`Process` instances are reused across calls, a subsequent
-    :func:`process_iter` call will overwrite or clear any previously
-    pre-fetched values. Do not rely on cached values from a prior iteration.
-
   .. seealso::
     - :ref:`perf-process-iter`
 
@@ -1001,11 +993,8 @@ Functions
 
   .. versionchanged:: 8.0.0
 
-     - When *attrs* is specified, the pre-fetched values are cached directly on
-       the :class:`Process` instance, so that subsequent method calls (e.g.
-       ``p.name()``, ``p.status()``) return the cached values instead of making
-       new system calls. The :attr:`Process.info` dict is deprecated in favor
-       of this new approach.
+     - Collected attributes are exposed via :attr:`Process.snapshot`;
+       ``Process.info`` is deprecated.
      - Passing an empty list (``attrs=[]``) to mean "all attributes" is
        deprecated; use :attr:`Process.attrs` instead.
 
@@ -1136,6 +1125,24 @@ Process class
 
     The process PID as a read-only property.
 
+  .. attribute:: snapshot
+
+    A :class:`ProcessSnapshot` holding the attributes collected by the last
+    :func:`process_iter(attrs=...) <psutil.process_iter>` call. It is empty for
+    a :class:`Process` created directly or yielded by :func:`process_iter`
+    without *attrs*.
+
+    .. versionadded:: 8.0.0
+
+  .. attribute:: info
+
+    The attributes collected by
+    :func:`process_iter(attrs=...) <psutil.process_iter>` as a dictionary.
+
+    .. deprecated:: 8.0.0
+       use :meth:`snapshot.as_dict() <ProcessSnapshot.as_dict>` instead. See
+       :ref:`migration guide <migration-8.0-snapshot>`.
+
   .. attribute:: attrs
 
     A :class:`frozenset` of strings representing the valid attribute names
@@ -1154,19 +1161,6 @@ Process class
        >>> psutil.process_iter(attrs=psutil.Process.attrs - {"net_connections"})
 
     .. versionadded:: 8.0.0
-
-  .. attribute:: info
-
-    A dict containing pre-fetched process info, set by :func:`process_iter`
-    when called with ``attrs`` argument. Accessing this attribute is deprecated
-    and raises :exc:`DeprecationWarning`. Use method calls instead (e.g.
-    ``p.name()`` instead of ``p.info['name']``) or :func:`process_iter` +
-    :meth:`Process.as_dict` if you need a dict structure.
-
-    .. seealso::
-      - :ref:`migration guide <migration-8.0>`
-
-    .. deprecated:: 8.0.0
 
   .. method:: oneshot()
 
@@ -1839,8 +1833,10 @@ Process class
   .. method:: memory_full_info()
 
     This deprecated method returns the same information as :meth:`memory_info`
-    plus :meth:`memory_footprint`'s :field:`uss`, :field:`pss` and
-    :field:`swap` in a single named tuple.
+    plus :meth:`memory_footprint`'s :field:`uss` (and, on Linux, also
+    :field:`pss` and :field:`swap`) in a single named tuple. On BSD, SunOS and
+    AIX no footprint field is added, so the result is just
+    :meth:`memory_info`'s.
 
     .. deprecated:: 8.0.0
        use :meth:`memory_footprint` instead. See
@@ -2209,6 +2205,46 @@ Popen class
 
 -------------------------------------------------------------------------------
 
+ProcessSnapshot class
+^^^^^^^^^^^^^^^^^^^^^
+
+.. class:: ProcessSnapshot
+
+  A read-only object holding the process attributes collected by
+  :func:`process_iter(attrs=...) <psutil.process_iter>`, available as
+  :attr:`Process.snapshot`. It is not supposed to be instantiated directly.
+
+  Each requested attribute is exposed as a plain attribute named after the
+  corresponding :class:`Process` method, holding the value it returned when the
+  process was scanned (or *ad_value* if it raised :exc:`AccessDenied`).
+  Accessing an attribute that was not requested raises :exc:`AttributeError`.
+  Values are never refreshed: call the :class:`Process` method to get a live
+  one.
+
+  .. code-block:: pycon
+
+     >>> import psutil
+     >>> for p in psutil.process_iter(["pid", "name", "cpu_percent"]):
+     ...     if p.snapshot.cpu_percent > 50:
+     ...         print(p.snapshot)
+     ...
+     ProcessSnapshot(pid=4821, name='python3', cpu_percent=72.3)
+     >>> p.snapshot.exe
+     Traceback (most recent call last):
+       ...
+     AttributeError: 'exe' was not requested in process_iter(attrs=...)
+
+  Snapshots support ``==``, are false when empty, and can be pickled and
+  copied.
+
+  .. method:: as_dict()
+
+    Return the collected attributes as a new dictionary.
+
+  .. versionadded:: 8.0.0
+
+-------------------------------------------------------------------------------
+
 C heap introspection
 --------------------
 
@@ -2343,7 +2379,7 @@ Windows services
 
   .. method:: start_type()
 
-    A string which can either be either ``'automatic'``, ``'manual'`` or
+    A string which can either be ``'automatic'``, ``'manual'`` or
     ``'disabled'``.
 
   .. method:: pid()
